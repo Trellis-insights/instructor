@@ -682,18 +682,18 @@ def map_to_gemini_function_schema(obj: dict[str, Any]) -> dict[str, Any]:
     Note that `enum` requires specific `format` setting
     """
 
-    import jsonref
-
     class FunctionSchema(BaseModel):
         description: str | None = None
         enum: list[str] | None = None
         example: Any | None = None
         format: str | None = None
         nullable: bool | None = None
-        items: FunctionSchema | None = None
+        items: Union['FunctionSchema', None] = None
         required: list[str] | None = None
         type: str
-        properties: dict[str, FunctionSchema] | None = None
+        properties: Union[dict[str, 'FunctionSchema'], None] = None
+
+    FunctionSchema.model_rebuild()
 
     schema: dict[str, Any] = jsonref.replace_refs(obj, lazy_load=False)  # type: ignore
     schema.pop("$defs", "")
@@ -710,8 +710,25 @@ def map_to_gemini_function_schema(obj: dict[str, Any]) -> dict[str, Any]:
             return obj
 
     schema = add_enum_format(schema)
+    schema = simplify_anyof(schema)
 
     return FunctionSchema(**schema).model_dump(exclude_none=True, exclude_unset=True)
+
+def simplify_anyof(obj: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(obj, dict):
+        if "anyOf" in obj:
+            types = [entry.get("type") for entry in obj["anyOf"]]
+            if "null" in types and len(types) == 2:
+                non_null = next((entry for entry in obj["anyOf"] if entry.get("type") != "null"), {})
+                simplified = simplify_anyof(non_null)
+                simplified["nullable"] = True
+                return simplified
+        # Recursively process nested dicts
+        return {k: simplify_anyof(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [simplify_anyof(item) for item in obj]
+    else:
+        return obj
 
 
 def update_gemini_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
