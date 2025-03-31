@@ -68,7 +68,7 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
         gemini_parameters = map_to_gemini_function_schema(openai_schema["parameters"])
         gemini_schema = gemini_parameters
     except Exception as e:
-        raise RuntimeError(f"Failed to transform schema to Gemini format: {e}") from e
+        raise RuntimeError(f"Failed to transform schema to Gemini format: {e} with these params: {openai_schema['parameters']}") from e
     
     return gemini_schema
 
