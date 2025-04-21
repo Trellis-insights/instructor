@@ -29,10 +29,10 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
     This ensures consistent handling of optional fields between from_gemini and from_vertexai clients.
     """
     from instructor.utils import map_to_gemini_function_schema
-    
+
     if not isinstance(model_cls, type) or not issubclass(model_cls, BaseModel):
         raise TypeError(f"Expected concrete pydantic.BaseModel subclass, got {model_cls}")
-    
+
     # Use OpenAI schema as an intermediate format
     try:
         # Handle both OpenAISchema and regular BaseModel
@@ -42,19 +42,19 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
             # Create schema in OpenAI format
             schema = model_cls.model_json_schema()
             docstring = getattr(model_cls, "__doc__", "") or ""
-            
+
             parameters = {
                 k: v for k, v in schema.items() if k not in ("title", "description")
             }
-            
             # Set required fields
             parameters["required"] = sorted(
                 k for k, v in parameters.get("properties", {}).items() if "default" not in v
             )
-            
             # Set description
-            description = schema.get("description") or f"Correctly extracted `{model_cls.__name__}` with all required parameters with correct types"
-            
+            description = schema.get("description") or (
+                f"Correctly extracted `{model_cls.__name__}` with all required parameters with correct types"
+            )
+
             openai_schema = {
                 "name": schema.get("title", model_cls.__name__),
                 "description": description,
@@ -62,15 +62,37 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
             }
     except Exception as e:
         raise RuntimeError(f"Failed to create OpenAI schema for {model_cls.__name__}: {e}") from e
-    
+
+    # Annotate any properties (or nested properties) with format=date
+    def _annotate_date_fields(props: dict[str, Any]):
+        for prop_name, prop_schema in props.items():
+            # If this field is a date, add the ISO requirement
+            if prop_schema.get("format") == "date":
+                # Add or overwrite description
+                prop_schema["description"] = "IMPORTANT: MUST BE IN ISO FORMAT"
+            # Recurse into object properties
+            if prop_schema.get("type") == "object" and "properties" in prop_schema:
+                _annotate_date_fields(prop_schema["properties"])
+            # Handle arrays of objects
+            if prop_schema.get("type") == "array" and "items" in prop_schema:
+                items = prop_schema["items"]
+                if isinstance(items, dict) and items.get("type") == "object" and "properties" in items:
+                    _annotate_date_fields(items["properties"])
+
+    # Invoke the date-field annotator on the schema's properties
+    _annotate_date_fields(openai_schema["parameters"].get("properties", {}))
+
     # Transform to Gemini format using the same utility as gemini_schema
     try:
         gemini_parameters = map_to_gemini_function_schema(openai_schema["parameters"])
         gemini_schema = gemini_parameters
     except Exception as e:
-        raise RuntimeError(f"Failed to transform schema to Gemini format: {e} with these params: {openai_schema['parameters']}") from e
-    
+        raise RuntimeError(
+            f"Failed to transform schema to Gemini format: {e} with these params: {openai_schema['parameters']}"
+        ) from e
+
     return gemini_schema
+
 
 def _create_vertexai_tool(
     models: BaseModel | list[BaseModel] | type,
