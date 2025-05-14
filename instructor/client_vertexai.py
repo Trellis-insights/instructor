@@ -62,7 +62,7 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
             }
     except Exception as e:
         raise RuntimeError(f"Failed to create OpenAI schema for {model_cls.__name__}: {e}") from e
-
+ 
     # Annotate any properties (or nested properties) with format=date
     def _annotate_date_fields(props: dict[str, Any]):
         for prop_name, prop_schema in props.items():
@@ -79,8 +79,30 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
                 if isinstance(items, dict) and items.get("type") == "object" and "properties" in items:
                     _annotate_date_fields(items["properties"])
 
+    def _reassign_all_of(props: dict[str, Any]):
+        for prop_name, prop_schema in props.items():
+            print(prop_name, prop_schema)
+            # If this field is a date, add the ISO requirement
+
+            if isinstance(prop_schema, dict) and "allOf" in prop_schema and isinstance(prop_schema["allOf"], list) and  len(prop_schema["allOf"]) == 1 and "$ref" in prop_schema["allOf"][0]:
+            
+                prop_schema["$ref"] = prop_schema["allOf"][0]["$ref"]
+                del prop_schema["allOf"]
+
+            # Recurse into object properties
+
+            if prop_schema.get("type") == "object" and "properties" in prop_schema:
+                _reassign_all_of(prop_schema["properties"])
+            # Handle arrays of objects
+            if prop_schema.get("type") == "array" and "items" in prop_schema:
+                items = prop_schema["items"]
+                if isinstance(items, dict) and items.get("type") == "object" and "properties" in items:
+                    _reassign_all_of(items["properties"])
+
     # Invoke the date-field annotator on the schema's properties
     _annotate_date_fields(openai_schema["parameters"].get("properties", {}))
+
+    _reassign_all_of(openai_schema["parameters"].get("properties", {}))
 
     # Transform to Gemini format using the same utility as gemini_schema
     try:
@@ -90,6 +112,7 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
         raise RuntimeError(
             f"Failed to transform schema to Gemini format: {e} with these params: {openai_schema['parameters']}"
         ) from e
+
 
     return gemini_schema
 
