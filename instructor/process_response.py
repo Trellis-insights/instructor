@@ -561,7 +561,7 @@ def handle_genai_structured_outputs(
     new_kwargs.pop("response_model", None)
     new_kwargs.pop("messages", None)
 
-    return response_model, new_kwargs
+    return system_message, new_kwargs
 
 
 def handle_genai_tools(
