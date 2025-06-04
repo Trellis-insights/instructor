@@ -551,10 +551,12 @@ def handle_genai_structured_outputs(
 
     new_kwargs["contents"] = convert_to_genai_messages(new_kwargs["messages"])
 
+    response_schema = _create_gemini_json_schema(response_model)
+
     new_kwargs["config"] = types.GenerateContentConfig(
         system_instruction=system_message,
         response_mime_type="application/json",
-        response_schema=response_model,
+        response_schema=response_schema,
     )
     new_kwargs.pop("response_model", None)
     new_kwargs.pop("messages", None)
