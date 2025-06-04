@@ -1,11 +1,13 @@
 # type: ignore
 from __future__ import annotations
 
-from typing import Any, Literal, overload
 
 import google.generativeai as genai
 
 import instructor
+
+from typing import Any, List, Set, Union, get_args, get_origin,  Literal, overload
+from pydantic import BaseModel
 
 
 def _transform_type(tp):
@@ -14,8 +16,7 @@ def _transform_type(tp):
       • turn Set[...] into List[...]
       • clone inner BaseModels with their own sets → lists
     """
-    from typing import Any, List, Set, Union, get_args, get_origin
-    from pydantic import BaseModel
+    
     
     origin = get_origin(tp)
 
