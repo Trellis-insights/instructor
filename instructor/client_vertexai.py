@@ -99,10 +99,37 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
                 if isinstance(items, dict) and items.get("type") == "object" and "properties" in items:
                     _reassign_all_of(items["properties"])
 
+
+    def _remove_unique_items(props: dict[str, Any]):
+        for prop_name, prop_schema in list(props.items()): # Use list to allow modification during iteration
+            if prop_name == "uniqueItems":
+                del props[prop_name]
+                continue
+
+            if isinstance(prop_schema, dict):
+                # Recurse into object properties
+                if prop_schema.get("type") == "object" and "properties" in prop_schema:
+                    _remove_unique_items(prop_schema["properties"])
+                # Handle arrays of objects
+                if prop_schema.get("type") == "array" and "items" in prop_schema:
+                    items = prop_schema["items"]
+                    if isinstance(items, dict) and items.get("type") == "object" and "properties" in items:
+                        _remove_unique_items(items["properties"])
+                    elif isinstance(items, dict): # Handle cases where items is a dict but not an object with properties
+                        _remove_unique_items(items)
+                # Handle other nested dictionaries
+                _remove_unique_items(prop_schema)
+            elif isinstance(prop_schema, list):
+                for item in prop_schema:
+                    if isinstance(item, dict):
+                        _remove_unique_items(item)
+
     # Invoke the date-field annotator on the schema's properties
     _annotate_date_fields(openai_schema["parameters"].get("properties", {}))
 
     _reassign_all_of(openai_schema["parameters"].get("properties", {}))
+
+    _remove_unique_items(openai_schema["parameters"].get("properties", {}))
 
     # Transform to Gemini format using the same utility as gemini_schema
     try:
