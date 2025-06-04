@@ -553,6 +553,7 @@ def handle_genai_structured_outputs(
     new_kwargs["contents"] = convert_to_genai_messages(new_kwargs["messages"])
 
     response_model = _create_gemini_response_model(response_model)
+    response_model = prepare_response_model(response_model)
 
     new_kwargs["config"] = types.GenerateContentConfig(
         system_instruction=system_message,
