@@ -13,7 +13,7 @@ import logging
 from openai import pydantic_function_tool
 from openai.types.chat import ChatCompletion
 from pydantic import BaseModel, create_model
-from client_vertexai import _create_gemini_json_schema
+from .client_vertexai import _create_gemini_json_schema
 
 # from instructor.client_bedrock import handle_bedrock_json
 from instructor.mode import Mode
