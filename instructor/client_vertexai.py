@@ -107,6 +107,8 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
                 continue
 
             if isinstance(prop_schema, dict):
+                if "uniqueItems" in prop_schema:
+                    del prop_schema["uniqueItems"]
                 # Recurse into object properties
                 if prop_schema.get("type") == "object" and "properties" in prop_schema:
                     _remove_unique_items(prop_schema["properties"])
