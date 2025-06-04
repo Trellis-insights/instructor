@@ -8,67 +8,80 @@ import google.generativeai as genai
 import instructor
 
 
-def _create_gemini_response_model(model_cls: type[BaseModel]) -> type[BaseModel]:
-    """Create a modified Pydantic model with uniqueItems keys removed from its schema.
+def _transform_type(tp):
+    """
+    Recursively walk an annotation and:
+      • turn Set[...] into List[...]
+      • clone inner BaseModels with their own sets → lists
+    """
+    from typing import Any, List, Set, Union, get_args, get_origin
+    from pydantic import BaseModel
     
-    This function:
-    1. Converts the Pydantic model to a JSON schema
-    2. Removes all uniqueItems keys from the schema
-    3. Creates a new Pydantic model from the modified schema
-    4. Returns the new model class
+    origin = get_origin(tp)
+
+    # -------------------- 1. primitive or concrete model --------------------
+    if origin is None:                                # not a generic alias
+        if isinstance(tp, type) and issubclass(tp, BaseModel):
+            return replace_set_with_list(tp)          # clone nested model
+        return tp
+
+    # -------------------- 2. Set[...] → List[...] ---------------------------
+    if origin in (set, Set):
+        inner = _transform_type(get_args(tp)[0] if get_args(tp) else Any)
+        return List[inner]
+
+    # -------------------- 3. generic containers (List, Dict, Union, etc.) --
+    new_args = tuple(_transform_type(a) for a in get_args(tp))
+
+    if origin is Union:                               # special-case Union
+        return Union[new_args]
+
+    # most collections (list, dict, tuple, etc.) can be rebuilt by subscripting
+    return origin[new_args]
+
+
+def replace_set_with_list(model: type[BaseModel]) -> type[BaseModel]:
+    """
+    Return a *new* Pydantic model class equivalent to `model`
+    but with every set-typed field replaced by a list-typed field,
+    recursively through any depth of nested containers / models.
+    Works on both Pydantic v1 and v2.
     """
     from pydantic import create_model
-    from pydantic.json_schema import model_json_schema_to_python
-    import inspect
+    
+    raw_fields = getattr(model, "__fields__", None) or model.model_fields
+    new_fields = {}
 
+    for name, fld in raw_fields.items():
+        anno = getattr(fld, "outer_type_", None) or getattr(fld, "annotation")
+        anno = _transform_type(anno)
+
+        default_val = ... if getattr(fld, "required", True) else fld.default
+        new_fields[name] = (anno, default_val)
+
+    return create_model(f"{model.__name__}", **new_fields)
+
+
+def _create_gemini_response_model(model_cls: type[BaseModel]) -> type[BaseModel]:
+    """
+    Create a modified Pydantic model with Set types replaced by List types.
+    
+    This function uses replace_set_with_list to recursively transform a model,
+    replacing all Set types with List types at any level of nesting.
+    
+    Args:
+        model_cls: The Pydantic model class to transform
+        
+    Returns:
+        A new Pydantic model class with all Set types replaced by List types
+    """
     if not isinstance(model_cls, type) or not issubclass(model_cls, BaseModel):
         raise TypeError(f"Expected concrete pydantic.BaseModel subclass, got {model_cls}")
 
-    # Convert Pydantic model to JSON schema
     try:
-        # Get the JSON schema from the model
-        schema = model_cls.model_json_schema()
+        return replace_set_with_list(model_cls)
     except Exception as e:
-        raise RuntimeError(f"Failed to create schema for {model_cls.__name__}: {e}") from e
-
-    # Define a recursive function to remove uniqueItems
-    def _remove_unique_items(obj: Any) -> None:
-        """Recursively remove uniqueItems keys from a schema object."""
-        if isinstance(obj, dict):
-            # Remove uniqueItems if present
-            if "uniqueItems" in obj:
-                del obj["uniqueItems"]
-            
-            # Recursively process all dictionary values
-            for key, value in obj.items():
-                _remove_unique_items(value)
-        elif isinstance(obj, list):
-            # Recursively process all list items
-            for item in obj:
-                _remove_unique_items(item)
-
-    # Remove uniqueItems from the schema
-    _remove_unique_items(schema)
-    
-    # Create a new model from the modified schema
-    try:
-        # Use the original model's name and docstring
-        model_name = model_cls.__name__
-        model_doc = inspect.getdoc(model_cls) or ""
-        
-        # Convert JSON schema back to Python types and fields
-        fields = model_json_schema_to_python(schema)
-        
-        # Create a new model with the same name and fields
-        new_model = create_model(
-            model_name,
-            __doc__=model_doc,
-            **fields
-        )
-        
-        return new_model
-    except Exception as e:
-        raise RuntimeError(f"Failed to create Pydantic model from modified schema: {e}") from e
+        raise RuntimeError(f"Failed to create modified model: {e}") from e
 
 
 @overload
