@@ -101,10 +101,7 @@ def _create_gemini_json_schema(model_cls: type[BaseModel]) -> dict[str, Any]:
 
 
     def _remove_unique_items(props: dict[str, Any]):
-        for prop_name, prop_schema in list(props.items()): # Use list to allow modification during iteration
-            if prop_name == "uniqueItems":
-                del props[prop_name]
-                continue
+        for prop_name, prop_schema in list(props.items()):
 
             if isinstance(prop_schema, dict):
                 if "uniqueItems" in prop_schema:
