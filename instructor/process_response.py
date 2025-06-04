@@ -13,7 +13,6 @@ import logging
 from openai import pydantic_function_tool
 from openai.types.chat import ChatCompletion
 from pydantic import BaseModel, create_model
-from .client_vertexai import _create_gemini_json_schema
 
 # from instructor.client_bedrock import handle_bedrock_json
 from instructor.mode import Mode
@@ -42,6 +41,7 @@ from instructor.utils import (
     extract_genai_system_message,
 )
 from instructor.multimodal import convert_messages, extract_genai_multimodal_content
+from .client_gemini import _create_gemini_response_model
 
 logger = logging.getLogger("instructor")
 
@@ -552,17 +552,17 @@ def handle_genai_structured_outputs(
 
     new_kwargs["contents"] = convert_to_genai_messages(new_kwargs["messages"])
 
-    response_schema = _create_gemini_json_schema(response_model)
+    response_model = _create_gemini_response_model(response_model)
 
     new_kwargs["config"] = types.GenerateContentConfig(
         system_instruction=system_message,
         response_mime_type="application/json",
-        response_schema=response_schema,
+        response_schema=response_model,
     )
     new_kwargs.pop("response_model", None)
     new_kwargs.pop("messages", None)
 
-    return response_schema, new_kwargs
+    return response_model, new_kwargs
 
 
 def handle_genai_tools(
