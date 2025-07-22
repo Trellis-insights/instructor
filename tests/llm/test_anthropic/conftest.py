@@ -1,39 +1,16 @@
 # conftest.py
-from anthropic import AsyncAnthropic, Anthropic
-import pytest
 import os
-
-try:
-    import braintrust
-
-    wrap_anthropic = braintrust.wrap_anthropic
-except ImportError:
-
-    def wrap_anthropic(x):
-        return x
+import pytest
+import importlib
 
 
-@pytest.fixture(scope="session")
-def client():
-    if os.environ.get("BRAINTRUST_API_KEY"):
-        yield wrap_anthropic(
-            Anthropic(
-                api_key=os.environ["BRAINTRUST_API_KEY"],
-                base_url="https://braintrustproxy.com/v1",
-            )
-        )
-    else:
-        yield Anthropic()
+if not os.getenv("ANTHROPIC_API_KEY"):
+    pytest.skip(
+        "ANTHROPIC_API_KEY environment variable not set",
+        allow_module_level=True,
+    )
 
-
-@pytest.fixture(scope="session")
-def aclient():
-    if os.environ.get("BRAINTRUST_API_KEY"):
-        yield wrap_anthropic(
-            AsyncAnthropic(
-                api_key=os.environ["BRAINTRUST_API_KEY"],
-                base_url="https://braintrustproxy.com/v1",
-            )
-        )
-    else:
-        yield AsyncAnthropic()
+if (
+    importlib.util.find_spec("anthropic") is None
+):  # pragma: no cover - optional dependency
+    pytest.skip("anthropic package is not installed", allow_module_level=True)

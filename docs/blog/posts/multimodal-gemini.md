@@ -216,3 +216,13 @@ To address these limitations and expand the capabilities of our video analysis s
 6. **Sentiment Analysis**: Incorporate sentiment analysis to gauge the speaker's enthusiasm or reservations about specific recommendations.
 
 By addressing these challenges and exploring these new directions, we can create a more comprehensive and nuanced video analysis system, opening up even more possibilities for applications in travel, education, and beyond.
+
+## Related Documentation
+- [Multimodal Concepts](/concepts/multimodal) - Working with images, video, and audio
+- [Image Processing](/concepts/images) - Image-specific techniques
+- [Google Integration](/integrations/google) - Complete Gemini setup guide
+
+## See Also
+- [OpenAI Multimodal](openai-multimodal) - Compare multimodal approaches
+- [Anthropic Structured Output](structured-output-anthropic) - Alternative provider
+- [Chat with PDFs using Gemini](chat-with-your-pdf-with-gemini) - Practical PDF processing

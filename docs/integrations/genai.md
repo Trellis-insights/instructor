@@ -23,6 +23,12 @@ We currently have two modes for Gemini
 - `Mode.GENAI_TOOLS` : This leverages function calling under the hood and returns a structured response
 - `Mode.GENAI_STRUCTURED_OUTPUTS` : This provides Gemini with a JSON Schema that it will use to respond in a structured format with
 
+!!! info "Gemini Thought Parts Filtering"
+
+    When using `Mode.GENAI_TOOLS`, Instructor automatically filters out thought parts from Gemini responses. Gemini 2.5 models include internal reasoning parts with `thought: true` by default, which cannot be disabled. Instructor removes these thought parts before processing the structured output to prevent runtime errors.
+
+    This filtering happens automatically and requires no additional configuration. For more information about Gemini's thinking feature, see the [official documentation](https://ai.google.dev/gemini-api/docs/thinking).
+
 ## Installation
 
 ```bash
@@ -30,6 +36,10 @@ pip install "instructor[google-genai]"
 ```
 
 ## Basic Usage
+
+!!! warning "Unions and Optionals"
+
+    Gemini doesn't have support for Union and Optional types in the structured outputs and tool calling integrations. We currently throw an error when we detect these in your response model.
 
 Getting started with Instructor and the genai SDK is straightforward. Just create a Pydantic model defining your output structure, patch the genai client, and make your request with a response_model parameter:
 
@@ -44,12 +54,10 @@ class User(BaseModel):
     age: int
 
 # Initialize and patch the client
-client = genai.Client()
-client = instructor.from_genai(client, mode=instructor.Mode.GENAI_TOOLS)
+client = instructor.from_provider("google/gemini-2.5-flash")
 
 # Extract structured data
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages=[{"role": "user", "content": "Extract: Jason is 25 years old"}],
     response_model=User,
 )
@@ -73,12 +81,10 @@ class User(BaseModel):
     age: int
 
 # Initialize and patch the client
-client = genai.Client()
-client = instructor.from_genai(client, mode=instructor.Mode.GENAI_TOOLS)
+client = instructor.from_provider("google/gemini-2.5-flash")
 
 # Single string (converted to user message)
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages="Jason is 25 years old",
     response_model=User,
 )
@@ -88,7 +94,6 @@ print(response)
 
 # Standard format
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages=[
         {"role": "user", "content": "Jason is 25 years old"}
     ],
@@ -100,7 +105,6 @@ print(response)
 
 # Using genai's Content type
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages=[
         genai.types.Content(
             role="user",
@@ -129,12 +133,10 @@ class User(BaseModel):
     age: int
 
 
-client = genai.Client()
-client = instructor.from_genai(client, mode=instructor.Mode.GENAI_TOOLS)
+client = instructor.from_provider("google/gemini-2.5-flash")
 
 # As a parameter
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     system="Jason is 25 years old",
     messages=[{"role": "user", "content": "You are a data extraction assistant"}],
     response_model=User,
@@ -145,7 +147,6 @@ print(response)
 
 # Or as a message with role "system"
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages=[
         {"role": "system", "content": "Jason is 25 years old"},
         {"role": "user", "content": "You are a data extraction assistant"},
@@ -176,13 +177,11 @@ class User(BaseModel):
 
 
 # Initialize and patch the client
-client = genai.Client()
-client = instructor.from_genai(client, mode=instructor.Mode.GENAI_TOOLS)
+client = instructor.from_provider("google/gemini-2.5-flash")
 
 # Single string (converted to user message)
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
-    messages=["{{name}} is {{ age }} years old"],
+    messages=[{"role": "user", "content": "{{ name }} is {{ age }} years old"}],
     response_model=User,
     context={
         "name": "Jason",
@@ -195,7 +194,6 @@ print(response)
 
 # Standard format
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages=[{"role": "user", "content": "{{ name }} is {{ age }} years old"}],
     response_model=User,
     context={
@@ -209,7 +207,6 @@ print(response)
 
 # Using genai's Content type
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages=[
         genai.types.Content(
             role="user",
@@ -249,10 +246,9 @@ class UserDetail(BaseModel):
     age: int
 
 
-client = instructor.from_genai(genai.Client())
+client = instructor.from_provider("google/gemini-2.5-flash")
 
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
     messages=[{"role": "user", "content": "Extract: jason is 25 years old"}],
     response_model=UserDetail,
     max_retries=3,
@@ -263,151 +259,223 @@ print(response)  # UserDetail(name='JASON', age=25)
 
 ## Multimodal Capabilities
 
+> We've provided a few different sample files for you to use to test out these new features. All examples below use these files.
+>
+> - (Audio) : A Recording of the Original Gettysburg Address : [gettysburg.wav](https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/gettysburg.wav)
+> - (Image) : An image of some blueberry plants [image.jpg](https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/image.jpg)
+> - (PDF) : A sample PDF file which contains a fake invoice [invoice.pdf](https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf)
+
+Instructor provides a unified, provider-agnostic interface for working with multimodal inputs like images, PDFs, and audio files. With Instructor's multimodal objects, you can easily load media from URLs, local files, or base64 strings using a consistent API that works across different AI providers (OpenAI, Anthropic, Mistral, etc.).
+
+Instructor handles all the provider-specific formatting requirements behind the scenes, ensuring your code remains clean and future-proof as provider APIs evolve.
+
+Let's see how to use the Image, Audio and PDF classes.
+
+### Image Processing
+
 !!! info "Autodetect Images"
 
     For convenient handling of images, you can enable automatic image conversion using the `autodetect_images` parameter. When enabled, Instructor will automatically detect and convert file paths and HTTP URLs provided as strings into the appropriate format required by the Google GenAI SDK. This makes working with images seamless and straightforward. ( see examples below )
 
-Gemini models excel at processing different types of media. Instructor makes it easy to extract structured data from multimodal inputs.
+Instructor makes it easy to analyse and extract semantic information from images using the Gemini series of models. [Click here](https://ai.google.dev/gemini-api/docs/models) to check if the model you'd like to use has vison capabilities.
 
-### Image Processing
+Let's see an example below with the sample image above where we'll load it in using our `from_url` method.
 
-Extract structured information from images with the same ease as text:
+Note that we support local files and base64 strings too with the `from_path` and the `from_base64` class methods.
 
 ```python
-from pydantic import BaseModel
+from instructor.processing.multimodal import Image
+from pydantic import BaseModel, Field
 import instructor
-from google import genai
+from google.genai import Client
 
 
 class ImageDescription(BaseModel):
-    objects: list[str]
-    scene: str
+    objects: list[str] = Field(..., description="The objects in the image")
+    scene: str = Field(..., description="The scene of the image")
+    colors: list[str] = Field(..., description="The colors in the image")
 
 
-client = instructor.from_genai(genai.Client())
-
-# Method 1 : Using a local file path
+client = instructor.from_provider("google/gemini-2.5-flash")
+url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/image.jpg"
+# Multiple ways to load an image:
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
+    response_model=ImageDescription,
     messages=[
         {
             "role": "user",
             "content": [
-                "Describe this image",
-                "./image.jpg",  # Local path
+                "What is in this image?",
+                # Option 1: Direct URL with autodetection
+                Image.from_url(url),
+                # Option 2: Local file
+                # Image.from_path("path/to/local/image.jpg")
+                # Option 3: Base64 string
+                # Image.from_base64("base64_encoded_string_here")
+                # Option 4: Autodetect
+                # Image.autodetect(<url|path|base64>)
             ],
-        }
+        },
     ],
-    autodetect_images=True,
-    response_model=ImageDescription,
 )
-print(response)
-# > objects=['cookies', 'coffee', 'blueberries', 'flowers'] scene='food photography'
 
-# Method 2 : Using instructor's image method to explicitly load an image
-response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                "Describe this image",
-                instructor.Image.from_path("./image.jpg"),  # Helper
-            ],
-        }
-    ],
-    response_model=ImageDescription,
-)
 print(response)
-# > objects=['cookies', 'coffee', 'blueberries', 'flowers'] scene='food photography'
+# Example output:
+# ImageDescription(
+#     objects=['blueberries', 'leaves'],
+#     scene='A blueberry bush with clusters of ripe blueberries and some unripe ones against a cloudy sky',
+#     colors=['green', 'blue', 'purple', 'white']
+# )
 
-# Method 3 : Providing a image url
-response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                "Describe this image",
-                "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/image.jpg",  # URL
-            ],
-        }
-    ],
-    autodetect_images=True,
-    response_model=ImageDescription,
-)
-print(response)
-# > objects=['blueberries'] scene='blueberry field'
 ```
 
 ### Audio Processing
 
-Process audio files and extract structured data from their content:
+Instructor makes it easy to analyse and extract semantic information from Audio files using the Gemini series of models. Let's see an example below with the sample Audio file above where we'll load it in using our `from_url` method.
+
+Note that we support local files and base64 strings too with the `from_path`
 
 ```python
+from instructor.processing.multimodal import Audio
 from pydantic import BaseModel
 import instructor
-from google import genai
-from google.genai import types
+from google.genai import Client
 
 
-class ImageDescription(BaseModel):
-    objects: list[str]
-    scene: str
-
-
-client = instructor.from_genai(genai.Client())
-
-
-class AudioContent(BaseModel):
+class AudioDescription(BaseModel):
+    transcript: str
     summary: str
+    speakers: list[str]
+    key_points: list[str]
 
-# Method 1 : Reading from a path itself
+
+url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/gettysburg.wav"
+
+client = instructor.from_provider("google/gemini-2.5-flash")
+
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
-    system="You are a helpful assistant that can extract and summarise the content of an audio file according to the schema provided. You must return a function call with the schema provided.",
+    response_model=AudioDescription,
     messages=[
         {
             "role": "user",
             "content": [
-                "Extract and summarise the content of this audio",
-                instructor.Audio.from_path("./pixel.mp3"),
+                "Please transcribe and analyze this audio:",
+                # Multiple loading options:
+                Audio.from_url(url),
+                # Option 2: Local file
+                # Audio.from_path("path/to/local/audio.mp3")
             ],
-        }
+        },
     ],
-    response_model=AudioContent,
 )
-print(response)
-# > summary='The Made by Google podcast discusses the Pixel feature drops with Aisha Sharif and DeCarlos Love. They discuss the importance of devices improving over time and the inte...
 
-# Method 2 : Using a url
-
-response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
-    system="You are a helpful assistant that can extract and summarise the content of an audio file according to the schema provided. You must return a function call with the schema provided.",
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                "Extract and summarise the content of this audio",
-                instructor.Audio.from_url(
-                    "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/gettysburg.wav"
-                ),
-            ],
-        }
-    ],
-    response_model=AudioContent,
-)
 print(response)
-#> summary="Abraham Lincoln's Gettysburg Address, beginning with 'Four score and seven years ago' and discussing the Civil War's test of a nation dedicated to equality"
+# > transcript='Four score and seven years ago our fathers..."]
 ```
+
+### PDF
+
+Instructor makes it easy to analyse and extract semantic information from PDFs using Gemini's new models.
+
+Let's see an example below with the sample PDF above where we'll load it in using our `from_url` method. With this integration that we're passing in the raw bytes to gemini itself, we also support using the Files api with the `PDFWithGenaiFile` class.
+
+Note that we support local files and base64 strings using this method too with the `from_path` and the `from_base64` class methods.
+
+```python
+from instructor.processing.multimodal import PDF
+from pydantic import BaseModel
+import instructor
+from google.genai import Client
+
+
+class Receipt(BaseModel):
+    total: int
+    items: list[str]
+
+
+client = instructor.from_provider("google/gemini-2.5-flash")
+url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
+# Multiple ways to load an PDF:
+response = client.chat.completions.create(
+    response_model=Receipt,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                "Extract out the total and line items from the invoice",
+                # Option 1: Direct URL
+                PDF.from_url(url),
+                # Option 2: Local file
+                # PDF.from_path("path/to/local/invoice.pdf"),
+                # Option 3: Base64 string
+                # PDF.from_base64("base64_encoded_string_here")
+                # Option 4: Autodetect
+                # PDF.autodetect(<url|path|base64>)
+            ],
+        },
+    ],
+)
+
+print(response)
+# > Receipt(total=220, items=['English Tea', 'Tofu'])
+```
+
+We also support the use of PDFs with the Gemini `Files` api with the `PDFWithGenaiFile` that allows you to use existing uploaded files or local files.
+
+Note that the `PdfWithGenaiFile.from_new_genai_file` operation is blocking and you can set the timeout and retry delay that we'll call while we await the upload to be registered as completed.
+
+```python
+PDFWithGenaiFile.from_new_genai_file(
+    "./invoice.pdf",
+    retry_delay=1,  # Time to wait before checking if file is ready to use
+    max_retries=20 # Number of times to check before throwing an error
+),
+```
+
+This makes it easier for you to work with the Gemini files API. You can use this in a normal chat completion as seen below
+
+```python
+from instructor.processing.multimodal import PDFWithGenaiFile
+from pydantic import BaseModel
+import instructor
+from google.genai import Client
+
+
+class Receipt(BaseModel):
+    total: int
+    items: list[str]
+
+
+client = instructor.from_provider("google/gemini-2.5-flash")
+url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
+# Multiple ways to load an PDF:
+response = client.chat.completions.create(
+    response_model=Receipt,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                "Extract out the total and line items from the invoice",
+                # Option 1: Direct URL
+                PDFWithGenaiFile.from_new_genai_file("./invoice.pdf"),
+
+                # Option 2 : Existing Genai File
+                # PDFWithGenaiFile.from_existing_genai_file("invoice.pdf"),
+            ],
+        },
+    ],
+)
+
+print(response)
+```
+
+If you'd like more fine-grained control over the files used, you can also use the `Files` api directly as seen below.
 
 ## Using Files
 
 Our API integration also supports the use of files
 
 ```python
-from google import genai
 import instructor
 from pydantic import BaseModel
 
@@ -416,8 +484,7 @@ class Summary(BaseModel):
     summary: str
 
 
-client = genai.Client()
-client = instructor.from_genai(client, mode=instructor.Mode.GENAI_TOOLS)
+client = instructor.from_provider("google/gemini-2.5-flash")
 
 file1 = client.files.upload(
     file="./gettysburg.wav",
@@ -425,10 +492,14 @@ file1 = client.files.upload(
 
 # As a parameter
 response = client.chat.completions.create(
-    model="gemini-2.0-flash-001",
-    system="Summarise the audio file.",
     messages=[
-        file1,
+        {
+            "role": "user",
+            "content": [
+                "Summarise the audio file.",
+                file1,
+            ]
+        }
     ],
     response_model=Summary,
 )
@@ -439,7 +510,13 @@ print(response)
 
 ## Streaming Responses
 
-> **Note:** Streaming functionality is currently only available when using the `Mode.GENAI_STRUCTURED_OUTPUTS` mode with Gemini models. Other modes like `tools` do not support streaming at this time.
+!!! warning "Streaming Limitations"
+
+    **As of July 11, 2025, Google GenAI does not support streaming with tool/function calling or structured outputs for regular models.** 
+    
+    - `Mode.GENAI_TOOLS` and `Mode.GENAI_STRUCTURED_OUTPUTS` do not support streaming with regular models
+    - To use streaming, you must use `Partial[YourModel]` explicitly or switch to other modes like `Mode.JSON`
+    - Alternatively, set `stream=False` to disable streaming
 
 Streaming allows you to process responses incrementally rather than waiting for the complete result. This is extremely useful for making UI changes feel instant and responsive.
 
@@ -450,11 +527,11 @@ Receive a stream of complete, validated objects as they're generated:
 ```python
 from pydantic import BaseModel
 import instructor
-from google import genai
 
 
-client = instructor.from_genai(
-    genai.Client(), mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS
+client = instructor.from_provider(
+    "google/gemini-2.5-flash",
+    mode=instructor.Mode.GENAI_STRUCTURED_OUTPUTS,
 )
 
 
@@ -468,15 +545,15 @@ class PersonList(BaseModel):
 
 
 stream = client.chat.completions.create_partial(
-    model="gemini-2.0-flash-001",
-    system="You are a helpful assistant. You must return a function call with the schema provided.",
+    model="gemini-2.5-flash",
+    response_model=PersonList,
+    stream=True,
     messages=[
         {
             "role": "user",
             "content": "Ivan is 20 years old, Jason is 25 years old, and John is 30 years old",
         }
     ],
-    response_model=PersonList,
 )
 
 for extraction in stream:
@@ -484,7 +561,91 @@ for extraction in stream:
     # > people=[PartialPerson(name='Ivan', age=None)]
     # > people=[PartialPerson(name='Ivan', age=20), PartialPerson(name='Jason', age=25), PartialPerson(name='John', age=None)]
     # > people=[PartialPerson(name='Ivan', age=20), PartialPerson(name='Jason', age=25), PartialPerson(name='John', age=30)]
+```
 
+### Iterable Streaming
+
+For extracting multiple objects from a single response, use `create_iterable`:
+
+```python
+from pydantic import BaseModel
+import instructor
+
+client = instructor.from_provider("google/gemini-2.5-flash")
+
+class User(BaseModel):
+    name: str
+    age: int
+
+# Extract multiple users from a single response
+stream = client.chat.completions.create_iterable(
+    model="gemini-2.5-flash",
+    response_model=User,
+    stream=True,
+    messages=[
+        {
+            "role": "user",
+            "content": "Jason is 25 years old, Sarah is 30 years old, and Mike is 28 years old",
+        }
+    ],
+)
+
+for user in stream:
+    print(user)
+    # > User(name='Jason', age=25)
+    # > User(name='Sarah', age=30)
+    # > User(name='Mike', age=28)
+```
+
+### Async Streaming
+
+Both partial and iterable streaming work with async clients:
+
+```python
+import asyncio
+from pydantic import BaseModel
+import instructor
+
+class User(BaseModel):
+    name: str
+    age: int
+
+async def async_partial_example():
+    client = instructor.from_provider("google/gemini-2.5-flash", async_client=True)
+    
+    stream = client.chat.completions.create_partial(
+        model="gemini-2.5-flash",
+        response_model=User,
+        stream=True,
+        messages=[
+            {"role": "user", "content": "Jason is 25 years old"}
+        ],
+    )
+    
+    async for chunk in stream:
+        print(chunk)
+
+async def async_iterable_example():
+    client = instructor.from_provider("google/gemini-2.5-flash", async_client=True)
+    
+    stream = client.chat.completions.create_iterable(
+        model="gemini-2.5-flash",
+        response_model=User,
+        stream=True,
+        messages=[
+            {
+                "role": "user", 
+                "content": "Jason is 25, Sarah is 30, Mike is 28"
+            }
+        ],
+    )
+    
+    async for user in stream:
+        print(user)
+
+# Run async examples
+asyncio.run(async_partial_example())
+asyncio.run(async_iterable_example())
 ```
 
 ## Async Support
@@ -495,7 +656,6 @@ Instructor provides full async support for the genai SDK, allowing you to make n
 import asyncio
 
 import instructor
-from google import genai
 from pydantic import BaseModel
 
 
@@ -505,13 +665,12 @@ class User(BaseModel):
 
 
 async def extract_user():
-    client = genai.Client()
-    client = instructor.from_genai(
-        client, mode=instructor.Mode.GENAI_TOOLS, use_async=True
+    client = instructor.from_provider(
+        "google/gemini-2.5-flash",
+        async_client=True,
     )
 
     response = await client.chat.completions.create(
-        model="gemini-2.0-flash-001",
         messages=[{"role": "user", "content": "Extract: Jason is 25 years old"}],
         response_model=User,
     )

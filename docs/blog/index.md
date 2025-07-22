@@ -1,18 +1,3 @@
----
-categories:
-- OpenAI
-comments: true
-description: Subscribe to our newsletter for AI updates, tips, and insights into the
-  latest features and advancements in AI technology.
-tags:
-- AI Updates
-- Newsletter Subscription
-- Tips
-- AI Features
-- Instructor
-title: Subscribe to Our Newsletter for AI Updates and Tips
----
-
 # Subscribe to our Newsletter for Updates and Tips
 
 If you want to get updates on new features and tips on how to use Instructor, you can subscribe to our newsletter below to get notified when we publish new content.
@@ -21,14 +6,15 @@ If you want to get updates on new features and tips on how to use Instructor, yo
 
 ## Advanced Topics
 
-1. [Instructor Implements llms.txt](posts/llms-txt-adoption.md)
-2. [Query Understanding: Beyond Embeddings](posts/rag-and-beyond.md)
-3. [Achieving GPT-4 Level Summaries with GPT-3.5-turbo](posts/chain-of-density.md)
-4. [Basics of Guardrails and Validation in AI Models](posts/validation-part1.md)
-5. [Validating Citations in AI-Generated Content](posts/citations.md)
-6. [Fine-tuning and Distillation in AI Models](posts/distilation-part1.md)
-7. [Enhancing OpenAI Client Observability with LangSmith](posts/langsmith.md)
-8. [Logfire Integration with Pydantic](posts/logfire.md)
+1. [Unified Provider Interface in Instructor](posts/announcing-unified-provider-interface.md)
+2. [Instructor Implements llms.txt](posts/llms-txt-adoption.md)
+3. [Query Understanding: Beyond Embeddings](posts/rag-and-beyond.md)
+4. [Achieving GPT-4 Level Summaries with GPT-3.5-turbo](posts/chain-of-density.md)
+5. [Basics of Guardrails and Validation in AI Models](posts/validation-part1.md)
+6. [Validating Citations in AI-Generated Content](posts/citations.md)
+7. [Fine-tuning and Distillation in AI Models](posts/distilation-part1.md)
+8. [Enhancing OpenAI Client Observability with LangSmith](posts/langsmith.md)
+9. [Logfire Integration with Pydantic](posts/logfire.md)
 
 ## AI Development and Optimization
 
@@ -51,8 +37,8 @@ If you want to get updates on new features and tips on how to use Instructor, yo
 - [Ollama Integration](../integrations/ollama.md)
 - [llama-cpp-python Integration](../integrations/llama-cpp-python.md)
 - [Together Compute Integration](../integrations/together.md)
-- [Pandas DataFrame Examples](../examples/bulk_classification.md#working-with-dataframes)
-- [Streaming Response Examples](../examples/bulk_classification.md#streaming-responses)
+- [Pandas DataFrame Examples](./posts/tidy-data-from-messy-tables.md#defining-a-custom-type)
+- [Streaming Response Examples](../concepts/partial.md)
 
 ## Media and Resources
 

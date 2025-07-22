@@ -43,7 +43,7 @@ This hook is emitted when an error occurs during parsing of the response as a py
 
 ```python
 def handler(error) -> None: ...
-``` 
+```
 
 ### `completion:last_attempt`
 
@@ -56,7 +56,6 @@ def handler(error) -> None: ...
 ## Implementation Details
 
 The Hooks system is implemented in the `instructor/hooks.py` file. The `Hooks` class handles the registration and emission of hook events. You can refer to this file to see how hooks work under the hood.
-The retry logic that uses Hooks is implemented in the `instructor/retry.py` file. This shows how Hooks are used when trying again after errors during completions.
 
 ### Hook Types
 
@@ -113,10 +112,9 @@ You can register hooks using the `on` method of the Instructor client or a `Hook
 
 ```python
 import instructor
-import openai
 import pprint
 
-client = instructor.from_openai(openai.OpenAI())
+client = instructor.from_provider("openai/gpt-4.1-mini")
 
 
 def log_completion_kwargs(*args, **kwargs):
@@ -126,7 +124,6 @@ def log_completion_kwargs(*args, **kwargs):
 client.on("completion:kwargs", log_completion_kwargs)
 
 resp = client.chat.completions.create(
-    model="gpt-3.5-turbo",
     messages=[{"role": "user", "content": "Hello, world!"}],
     response_model=str,
 )
@@ -144,10 +141,9 @@ You can remove a specific hook using the `off` method:
 
 ```python
 import instructor
-import openai
 import pprint
 
-client = instructor.from_openai(openai.OpenAI())
+client = instructor.from_provider("openai/gpt-4.1-mini")
 
 
 def log_completion_kwargs(*args, **kwargs):
@@ -167,9 +163,8 @@ To remove all hooks for a specific event or all events:
 
 ```python
 import instructor
-import openai
 
-client = instructor.from_openai(openai.OpenAI())
+client = instructor.from_provider("openai/gpt-4.1-mini")
 
 # Define a simple handler
 def log_completion_kwargs(*args, **kwargs):
@@ -180,7 +175,6 @@ client.on("completion:kwargs", log_completion_kwargs)
 
 # Make a request that triggers the hook
 resp = client.chat.completions.create(
-    model="gpt-3.5-turbo",
     messages=[{"role": "user", "content": "Hello, world!"}],
     response_model=str,
 )
@@ -204,7 +198,6 @@ Here's a comprehensive example demonstrating how to use hooks for logging and de
 
 ```python
 import instructor
-import openai
 import pydantic
 
 
@@ -219,7 +212,7 @@ def log_completion_kwargs(*args, **kwargs) -> None:
     #             "content": "Extract the user name and age from the following text: 'John is 20 years old'",
     #         }
     #     ],
-    #     "model": "gpt-4o-mini",
+    #     "model": "gpt-4.1-mini",
     #     "tools": [
     #         {
     #             "type": "function",
@@ -271,7 +264,7 @@ def log_completion_response(response) -> None:
     #         }
     #     ],
     #     'created': 1732370794,
-    #     'model': 'gpt-4o-mini-2024-07-18',
+    #     'model': 'gpt-4.1-mini-2024-07-18',
     #     'object': 'chat.completion',
     #     'service_tier': None,
     #     'system_fingerprint': 'fp_0705bf87c0',
@@ -296,11 +289,32 @@ def handle_completion_error(error: Exception) -> None:
     print(f"Type: {type(error).__name__}")
     print(f"Message: {str(error)}")
 
+    # Handle specific Instructor exceptions
+    from instructor.core.exceptions import (
+        IncompleteOutputException,
+        ValidationError,
+        ProviderError
+    )
+
+    if isinstance(error, IncompleteOutputException):
+        print(f"Output was truncated. Last completion: {error.last_completion}")
+    elif isinstance(error, ValidationError):
+        print("Validation failed - check your model schema")
+    elif isinstance(error, ProviderError):
+        print(f"Provider {error.provider} had an issue")
+
 
 def log_parse_error(error: Exception) -> None:
     print(f"## Parse error: {error}")
     print(f"Type: {type(error).__name__}")
     print(f"Message: {str(error)}")
+
+    # You can also check for Pydantic validation errors
+    from pydantic import ValidationError as PydanticValidationError
+    if isinstance(error, PydanticValidationError):
+        print("Pydantic validation errors:")
+        for err in error.errors():
+            print(f"  - {err['loc']}: {err['msg']}")
 
 
 # Handler for a custom logger that records how many errors have occurred
@@ -313,7 +327,7 @@ class ErrorCounter:
         print(f"Error count: {self.error_count}")
 
 
-client = instructor.from_openai(openai.OpenAI())
+client = instructor.from_provider("openai/gpt-4.1-mini")
 
 # Register the hooks
 client.on("completion:kwargs", log_completion_kwargs)
@@ -334,7 +348,6 @@ class User(pydantic.BaseModel):
 # Try extraction with a potentially problematic input
 try:
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
@@ -409,6 +422,66 @@ handler: CompletionErrorHandler = my_error_handler
 client.on("completion:error", handler)
 ```
 
+## Error Handling with Hooks
+
+Hooks provide an excellent way to monitor and handle errors consistently across your application. You can use them with Instructor's exception hierarchy for sophisticated error handling:
+
+```python
+from instructor.core.exceptions import (
+    InstructorError,
+    IncompleteOutputException,
+    InstructorRetryException,
+    ValidationError,
+    ProviderError,
+    ConfigurationError
+)
+import logging
+
+logger = logging.getLogger(__name__)
+
+class ErrorMonitor:
+    def __init__(self):
+        self.error_counts = {
+            "incomplete": 0,
+            "validation": 0,
+            "provider": 0,
+            "retry_exhausted": 0,
+            "other": 0
+        }
+
+    def handle_error(self, error: Exception):
+        # Log the error with appropriate level
+        if isinstance(error, IncompleteOutputException):
+            self.error_counts["incomplete"] += 1
+            logger.warning(f"Incomplete output: {error}")
+        elif isinstance(error, ValidationError):
+            self.error_counts["validation"] += 1
+            logger.error(f"Validation failed: {error}")
+        elif isinstance(error, ProviderError):
+            self.error_counts["provider"] += 1
+            logger.error(f"Provider error ({error.provider}): {error}")
+        elif isinstance(error, InstructorRetryException):
+            self.error_counts["retry_exhausted"] += 1
+            logger.critical(f"All retries exhausted after {error.n_attempts} attempts")
+        else:
+            self.error_counts["other"] += 1
+            logger.error(f"Unexpected error: {type(error).__name__}: {error}")
+
+    def get_stats(self):
+        return self.error_counts
+
+# Usage
+monitor = ErrorMonitor()
+client = instructor.from_provider("openai/gpt-4.1-mini")
+
+client.on("completion:error", monitor.handle_error)
+client.on("parse:error", monitor.handle_error)
+client.on("completion:last_attempt", monitor.handle_error)
+
+# After running your application
+print(f"Error statistics: {monitor.get_stats()}")
+```
+
 ## Hooks in Testing
 
 Hooks are particularly useful for testing, as they allow you to inspect the arguments and responses without modifying your application code:
@@ -417,19 +490,17 @@ Hooks are particularly useful for testing, as they allow you to inspect the argu
 import unittest
 from unittest.mock import Mock
 import instructor
-import openai
 
 
 class TestMyApp(unittest.TestCase):
     def test_completion(self):
-        client = instructor.from_openai(openai.OpenAI())
+        client = instructor.from_provider("openai/gpt-4.1-mini")
         mock_handler = Mock()
 
         client.on("completion:response", mock_handler)
 
         # Call your code that uses the client
         result = client.chat.completions.create(
-            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": "Hello"}],
             response_model=str,
         )
@@ -439,7 +510,7 @@ class TestMyApp(unittest.TestCase):
 
         # You can also inspect the arguments
         response_arg = mock_handler.call_args[0][0]
-        self.assertEqual(response_arg.model, "gpt-3.5-turbo")
+        self.assertEqual(response_arg.model, "gpt-4.1-mini")
 ```
 
 This approach allows you to test your code without mocking the entire client.
@@ -456,7 +527,6 @@ client = instructor.patch(OpenAI())
 
 # Example with all hooks enabled (default)
 response = client.chat.completions.create(
-    model="gpt-3.5-turbo",
     response_model=str,
     messages=[{"role": "user", "content": "Hello!"}],
 )

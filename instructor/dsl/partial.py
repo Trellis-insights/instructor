@@ -7,29 +7,31 @@
 # --------------------------------------------------------------------------------
 
 from __future__ import annotations
+
 import json
-from jiter import from_json
-from pydantic import BaseModel, create_model
-from typing import Union
-import types
+import re
 import sys
-from pydantic.fields import FieldInfo
-from typing import (
-    Any,
-    Generic,
-    get_args,
-    get_origin,
-    NoReturn,
-    Optional,
-    TypeVar,
-)
+import types
 from collections.abc import AsyncGenerator, Generator, Iterable
 from copy import deepcopy
 from functools import cache
+from typing import (
+    Any,
+    Generic,
+    NoReturn,
+    Optional,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+)
+
+from jiter import from_json
+from pydantic import BaseModel, create_model
+from pydantic.fields import FieldInfo
 
 from instructor.mode import Mode
 from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
-import re
 
 T_Model = TypeVar("T_Model", bound=BaseModel)
 
@@ -187,7 +189,11 @@ class PartialBase(Generic[T_Model]):
             "on" if issubclass(cls, PartialLiteralMixin) else "trailing-strings"
         )
         for chunk in json_chunks:
-            if len(chunk) > len(potential_object):
+            if (
+                len(chunk) > len(potential_object)
+                and chunk.startswith("{")
+                and chunk.endswith("}")
+            ):
                 potential_object = chunk
             else:
                 potential_object += chunk
@@ -207,7 +213,11 @@ class PartialBase(Generic[T_Model]):
             "on" if issubclass(cls, PartialLiteralMixin) else "trailing-strings"
         )
         async for chunk in json_chunks:
-            if len(chunk) > len(potential_object):
+            if (
+                len(chunk) > len(potential_object)
+                and chunk.startswith("{")
+                and chunk.endswith("}")
+            ):
                 potential_object = chunk
             else:
                 potential_object += chunk
@@ -288,6 +298,7 @@ class PartialBase(Generic[T_Model]):
                     yield json.dumps(
                         chunk.candidates[0].content.parts[0].function_call.args
                     )
+
                 if mode == Mode.GENAI_STRUCTURED_OUTPUTS:
                     yield chunk.text
                 if mode == Mode.GENAI_TOOLS:
@@ -300,6 +311,17 @@ class PartialBase(Generic[T_Model]):
                     resp_dict = type(resp).to_dict(resp)  # type:ignore
                     if "args" in resp_dict:
                         yield json.dumps(resp_dict["args"])
+                elif mode in {
+                    Mode.RESPONSES_TOOLS,
+                    Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
+                }:
+                    from openai.types.responses import (
+                        ResponseFunctionCallArgumentsDeltaEvent,
+                    )
+
+                    if isinstance(chunk, ResponseFunctionCallArgumentsDeltaEvent):
+                        yield chunk.delta
+
                 elif chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         Mode.warn_mode_functions_deprecation()
@@ -312,6 +334,7 @@ class PartialBase(Generic[T_Model]):
                         Mode.CEREBRAS_JSON,
                         Mode.FIREWORKS_JSON,
                         Mode.PERPLEXITY_JSON,
+                        Mode.WRITER_JSON,
                     }:
                         if json_chunk := chunk.choices[0].delta.content:
                             yield json_chunk
@@ -354,6 +377,29 @@ class PartialBase(Generic[T_Model]):
                     yield json.dumps(
                         chunk.candidates[0].content.parts[0].function_call.args
                     )
+                if mode == Mode.GENAI_STRUCTURED_OUTPUTS:
+                    yield chunk.text
+                if mode == Mode.GENAI_TOOLS:
+                    fc = chunk.candidates[0].content.parts[0].function_call.args
+                    yield json.dumps(fc)
+                if mode == Mode.GEMINI_JSON:
+                    yield chunk.text
+                if mode == Mode.GEMINI_TOOLS:
+                    resp = chunk.candidates[0].content.parts[0].function_call
+                    resp_dict = type(resp).to_dict(resp)  # type:ignore
+                    if "args" in resp_dict:
+                        yield json.dumps(resp_dict["args"])
+
+                if mode in {
+                    Mode.RESPONSES_TOOLS,
+                    Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
+                }:
+                    from openai.types.responses import (
+                        ResponseFunctionCallArgumentsDeltaEvent,
+                    )
+
+                    if isinstance(chunk, ResponseFunctionCallArgumentsDeltaEvent):
+                        yield chunk.delta
                 elif chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         Mode.warn_mode_functions_deprecation()
@@ -366,6 +412,7 @@ class PartialBase(Generic[T_Model]):
                         Mode.CEREBRAS_JSON,
                         Mode.FIREWORKS_JSON,
                         Mode.PERPLEXITY_JSON,
+                        Mode.WRITER_JSON,
                     }:
                         if json_chunk := chunk.choices[0].delta.content:
                             yield json_chunk

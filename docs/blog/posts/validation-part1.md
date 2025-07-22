@@ -80,7 +80,7 @@ Let's examine how these approaches with an example. Imagine that you run a softw
 
 ## Software 1.0: Introduction to Validations in Pydantic
 
-A simple method could be to compile a list of different words that are often associated with hate speech. For simplicity, let's assume that we've found that the words `Steal` and `Rob` are good predictors of hateful speech from our database. We can modify our validation structure above to accomodate this.
+A simple method could be to compile a list of different words that are often associated with hate speech. For simplicity, let's assume that we've found that the words `Steal` and `Rob` are good predictors of hateful speech from our database. We can modify our validation structure above to accommodate this.
 
 This will throw an error if we pass in a string like `Let's rob the bank!` or `We should steal from the supermarkets`.
 
@@ -486,3 +486,12 @@ In this example, even though there is no code explicitly transforming the name t
 From the simplicity of Pydantic and Instructor to the dynamic validation capabilities of LLMs, the landscape of validation is changing but without needing to introduce new concepts. It's clear that the future of validation is not just about preventing bad data but about allowing llms to understand the data and correcting it.
 
 If you enjoy the content or want to try out `Instructor` please check out the [github](https://github.com/jxnl/instructor) and give us a star!
+
+## Related Documentation
+- [Core Validation Concepts](/concepts/validation) - Learn about validation fundamentals
+- [Reask Validation](/concepts/reask_validation) - Handle validation failures gracefully
+
+## See Also
+- [Semantic Validation with Structured Outputs](semantic-validation-structured-outputs) - Next evolution in validation
+- [Why Bad Schemas Break LLMs](bad-schemas-could-break-llms) - Schema design best practices
+- [Pydantic Is Still All You Need](pydantic-is-still-all-you-need) - Why Pydantic validation matters

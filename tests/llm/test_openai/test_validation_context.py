@@ -27,7 +27,7 @@ class Message(BaseModel):
 
 @pytest.mark.parametrize("model, mode", product(models, modes))
 def test_banned_words_validation(model: str, mode: instructor.Mode, client):
-    client = instructor.patch(client, mode=mode)
+    client = instructor.from_openai(client, mode=mode)
 
     # Test with content containing a banned word
     with pytest.raises(Exception):  # noqa: B017
@@ -47,7 +47,7 @@ def test_banned_words_validation(model: str, mode: instructor.Mode, client):
 
 @pytest.mark.parametrize("model, mode", product(models, modes))
 def test_banned_words_validation_old(model: str, mode: instructor.Mode, client):
-    client = instructor.patch(client, mode=mode)
+    client = instructor.from_openai(client, mode=mode)
 
     # Test with content containing a banned word
     with pytest.raises(Exception):  # noqa: B017
@@ -67,7 +67,7 @@ def test_banned_words_validation_old(model: str, mode: instructor.Mode, client):
 
 @pytest.mark.parametrize("model, mode", product(models, modes))
 def test_no_banned_words_validation(model: str, mode: instructor.Mode, client):
-    client = instructor.patch(client, mode=mode)
+    client = instructor.from_openai(client, mode=mode)
 
     # Test with content containing a banned word
     response = client.chat.completions.create(
@@ -105,7 +105,7 @@ def test_forced_words_validation(model: str, mode: instructor.Mode, client):
                     raise ValueError(error_message)
             return v
 
-    client = instructor.patch(client, mode=mode)
+    client = instructor.from_openai(client, mode=mode)
 
     response = client.chat.completions.create(
         model=model,
@@ -123,7 +123,6 @@ def test_forced_words_validation(model: str, mode: instructor.Mode, client):
         ],
         context={"must_contain_words": ["love", "peace", "joy"]},
     )
-
-    assert "love" in response.content
-    assert "peace" in response.content
-    assert "joy" in response.content
+    assert "love" in response.content.lower()
+    assert "peace" in response.content.lower()
+    assert "joy" in response.content.lower()

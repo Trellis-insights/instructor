@@ -7,19 +7,25 @@ from typing import (
     Union,
     get_args,
     get_origin,
+    TYPE_CHECKING,
 )
 from collections.abc import Generator
 from pydantic import BaseModel
-from instructor.function_calls import OpenAISchema, openai_schema
 from collections.abc import Iterable
 
-from instructor.mode import Mode
+from ..mode import Mode
 
-T = TypeVar("T", bound=OpenAISchema)
+if TYPE_CHECKING:
+    from ..processing.function_calls import OpenAISchema
+
+    T = TypeVar("T", bound=OpenAISchema)
+else:
+    # At runtime, we'll bind to BaseModel instead to avoid circular import
+    T = TypeVar("T", bound=BaseModel)
 
 
 class ParallelBase:
-    def __init__(self, *models: type[OpenAISchema]):
+    def __init__(self, *models: type[BaseModel]):
         # Note that for everything else we've created a class, but for parallel base it is an instance
         assert len(models) > 0, "At least one model is required"
         self.models = models
@@ -54,9 +60,9 @@ class VertexAIParallelBase(ParallelBase):
         validation_context: Optional[Any] = None,
         strict: Optional[bool] = None,
     ) -> Generator[BaseModel, None, None]:
-        assert (
-            mode == Mode.VERTEXAI_PARALLEL_TOOLS
-        ), "Mode must be VERTEXAI_PARALLEL_TOOLS"
+        assert mode == Mode.VERTEXAI_PARALLEL_TOOLS, (
+            "Mode must be VERTEXAI_PARALLEL_TOOLS"
+        )
 
         if not response or not response.candidates:
             return
@@ -106,11 +112,24 @@ def get_types_array(typehint: type[Iterable[T]]) -> tuple[type[T], ...]:
 
 
 def handle_parallel_model(typehint: type[Iterable[T]]) -> list[dict[str, Any]]:
+    # Import at runtime to avoid circular import
+    from ..processing.function_calls import openai_schema
+
     the_types = get_types_array(typehint)
     return [
         {"type": "function", "function": openai_schema(model).openai_schema}
         for model in the_types
     ]
+
+
+def handle_anthropic_parallel_model(
+    typehint: type[Iterable[T]],
+) -> list[dict[str, Any]]:
+    # Import at runtime to avoid circular import
+    from ..processing.function_calls import openai_schema
+
+    the_types = get_types_array(typehint)
+    return [openai_schema(model).anthropic_schema for model in the_types]
 
 
 def ParallelModel(typehint: type[Iterable[T]]) -> ParallelBase:
@@ -121,3 +140,34 @@ def ParallelModel(typehint: type[Iterable[T]]) -> ParallelBase:
 def VertexAIParallelModel(typehint: type[Iterable[T]]) -> VertexAIParallelBase:
     the_types = get_types_array(typehint)
     return VertexAIParallelBase(*[model for model in the_types])
+
+
+class AnthropicParallelBase(ParallelBase):
+    def from_response(
+        self,
+        response: Any,
+        mode: Mode,
+        validation_context: Optional[Any] = None,
+        strict: Optional[bool] = None,
+    ) -> Generator[BaseModel, None, None]:
+        assert mode == Mode.ANTHROPIC_PARALLEL_TOOLS, (
+            "Mode must be ANTHROPIC_PARALLEL_TOOLS"
+        )
+
+        if not response or not hasattr(response, "content"):
+            return
+
+        for content in response.content:
+            if getattr(content, "type", None) == "tool_use":
+                name = content.name
+                arguments = content.input
+                if name in self.registry:
+                    json_str = json.dumps(arguments)
+                    yield self.registry[name].model_validate_json(
+                        json_str, context=validation_context, strict=strict
+                    )
+
+
+def AnthropicParallelModel(typehint: type[Iterable[T]]) -> AnthropicParallelBase:
+    the_types = get_types_array(typehint)
+    return AnthropicParallelBase(*[model for model in the_types])
