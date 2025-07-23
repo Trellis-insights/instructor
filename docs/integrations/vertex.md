@@ -7,29 +7,23 @@ description: "Complete guide to using Instructor with Google Cloud's Vertex AI. 
 
 Google Cloud's Vertex AI provides enterprise-grade AI capabilities with robust scaling and security features. This guide shows you how to use Instructor with Vertex AI for type-safe, validated responses.
 
-!!! warning "Migration Notice"
-    The direct `from_vertexai` integration is being deprecated in favor of the unified `google-genai` SDK. 
-    Please use `from_provider` or `from_genai` with `vertexai=True` for new projects. 
-    See the [migration guide](#migration-to-google-genai) below.
-
 ## Quick Start
 
-Install Instructor with Google GenAI support (which includes Vertex AI):
+Install Instructor with Vertex AI support. You can do so by running the command below.
 
 ```bash
-pip install "instructor[google-genai]"
+pip install "instructor[vertexai]"
 ```
 
 ## Simple User Example (Sync)
 
 ```python
 import instructor
+import vertexai  # type: ignore
+from vertexai.generative_models import GenerativeModel  # type: ignore
 from pydantic import BaseModel
-import os
 
-# Set your project ID and location
-os.environ["GOOGLE_CLOUD_PROJECT"] = "your-project-id"
-os.environ["GOOGLE_CLOUD_LOCATION"] = "us-central1"
+vertexai.init()
 
 
 class User(BaseModel):
@@ -37,13 +31,13 @@ class User(BaseModel):
     age: int
 
 
-# Using from_provider (recommended)
-client = instructor.from_provider(
-    "vertexai/gemini-1.5-flash",
+client = instructor.from_vertexai(
+    client=GenerativeModel("gemini-1.5-pro-preview-0409"),
+    mode=instructor.Mode.VERTEXAI_TOOLS,
 )
 
 # note that client.chat.completions.create will also work
-resp = client.messages.create(
+resp = client.create(
     messages=[
         {
             "role": "user",
@@ -74,10 +68,10 @@ class User(BaseModel):
     age: int
 
 
-client = instructor.from_provider(
-    "vertex_ai/gemini-1.5-pro-preview-0409",
-    async_client=True,
+client = instructor.from_vertexai(
+    client=GenerativeModel("gemini-1.5-pro-preview-0409"),
     mode=instructor.Mode.VERTEXAI_TOOLS,
+    _async=True,
 )
 
 async def extract_user():
@@ -117,8 +111,8 @@ class UserExtract(BaseModel):
     name: str
     age: int
 
-client = instructor.from_provider(
-    "vertex_ai/gemini-1.5-pro-preview-0409",
+client = instructor.from_vertexai(
+    client=GenerativeModel("gemini-2.0-flash"),
     mode=instructor.Mode.VERTEXAI_TOOLS,
 )
 
@@ -152,8 +146,8 @@ class UserExtract(BaseModel):
     name: str
     age: int
 
-client = instructor.from_provider(
-    "vertex_ai/gemini-1.5-pro-preview-0409",
+client = instructor.from_vertexai(
+    client=GenerativeModel("gemini-2.0-flash"),
     mode=instructor.Mode.VERTEXAI_TOOLS,
 )
 
@@ -190,10 +184,10 @@ class UserExtract(BaseModel):
     name: str
     age: int
 
-client = instructor.from_provider(
-    "vertex_ai/gemini-1.5-pro-preview-0409",
-    async_client=True,
+client = instructor.from_vertexai(
+    client=GenerativeModel("gemini-2.0-flash"),
     mode=instructor.Mode.VERTEXAI_TOOLS,
+    _async=True,
 )
 
 async def stream_partial():
@@ -204,7 +198,7 @@ async def stream_partial():
             {"role": "user", "content": "Anibal is 23 years old"},
         ],
     )
-
+    
     async for partial_user in response_stream:
         print(f"Received update: {partial_user}")
 
@@ -215,7 +209,7 @@ async def stream_iterable():
             {"role": "user", "content": "Make up two people"},
         ],
     )
-
+    
     async for user in response_stream:
         print(f"Generated user: {user}")
 
@@ -230,57 +224,6 @@ asyncio.run(stream_iterable())
 - [Instructor Core Concepts](../concepts/index.md)
 - [Type Validation Guide](../concepts/validation.md)
 - [Advanced Usage Examples](../examples/index.md)
-
-## Migration to Google GenAI
-
-The legacy `from_vertexai` method is being deprecated in favor of the unified Google GenAI SDK. Here's how to migrate:
-
-### Old Way (Deprecated)
-```python
-import instructor
-import vertexai
-from vertexai.generative_models import GenerativeModel
-
-vertexai.init(project="your-project", location="us-central1")
-
-client = instructor.from_vertexai(
-    GenerativeModel("gemini-1.5-flash"),
-    mode=instructor.Mode.VERTEXAI_TOOLS,
-)
-```
-
-### New Way (Recommended)
-```python
-import instructor
-
-# Option 1: Using from_provider (simplest)
-client = instructor.from_provider(
-    "vertexai/gemini-1.5-flash",
-    project="your-project",  # Optional if set in environment
-    location="us-central1"   # Optional, defaults to us-central1
-)
-
-# Option 2: Using from_genai with Google GenAI SDK
-from google import genai
-from instructor import from_genai
-
-client = from_genai(
-    genai.Client(
-        vertexai=True,
-        project="your-project",
-        location="us-central1",
-        model="gemini-1.5-flash"
-    )
-)
-```
-
-### Environment Variables
-
-You can also set these environment variables to avoid passing project/location each time:
-```bash
-export GOOGLE_CLOUD_PROJECT="your-project-id"
-export GOOGLE_CLOUD_LOCATION="us-central1"
-```
 
 ## Updates and Compatibility
 

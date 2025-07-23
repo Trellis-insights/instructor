@@ -1,21 +1,9 @@
 import pytest
-import instructor
-from instructor import Mode
+from instructor import from_cohere
 
 
-modes = [
-    Mode.COHERE_JSON_SCHEMA,
-    Mode.COHERE_TOOLS,
-]
-
-
-@pytest.mark.parametrize("mode", modes)
-def test_none_response_model(client, mode):
-    client = instructor.from_provider(
-        "cohere/command-r",
-        max_tokens=1000,
-        mode=mode,
-    )
+def test_none_response_model(client):
+    client = from_cohere(client, model_name="command-r", max_tokens=1000)
 
     response = client.messages.create(
         messages=[{"role": "user", "content": "Tell me about your day"}],
@@ -27,16 +15,10 @@ def test_none_response_model(client, mode):
 
 
 @pytest.mark.asyncio()
-@pytest.mark.parametrize("mode", modes)
-async def test_none_response_model_async(mode):
-    client = instructor.from_provider(
-        "cohere/command-r",
-        max_tokens=1000,
-        async_client=True,
-        mode=mode,
-    )
+async def test_none_response_model_async(aclient):
+    async_client = from_cohere(aclient, model_name="command-r", max_tokens=1000)
 
-    response = await client.messages.create(
+    response = await async_client.messages.create(
         messages=[{"role": "user", "content": "Tell me about your day"}],
         response_model=None,
         temperature=0,

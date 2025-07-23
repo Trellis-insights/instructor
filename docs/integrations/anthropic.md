@@ -1,21 +1,19 @@
 ---
-title: "Anthropic Claude Tutorial: Structured Outputs with Instructor"
-description: "Complete guide to using Anthropic's Claude models with Instructor for structured data extraction. Learn how to use Claude 3 Opus, Sonnet, and Haiku for type-safe outputs in Python."
+title: "Structured outputs with Anthropic, a complete guide w/ instructor"
+description: Learn how to combine Anthropic and Instructor clients to create user models with complex properties in Python.
 ---
 
-# Anthropic Claude Tutorial: Structured Outputs with Instructor
+# Structured outputs with Anthropic, a complete guide w/ instructor
 
-Learn how to use Anthropic's Claude models (Claude 3 Opus, Sonnet, and Haiku) with Instructor to extract structured, validated data. This tutorial covers everything from basic setup to advanced patterns for production use.
+Now that we have a [Anthropic](https://www.anthropic.com/) client, we can use it with the `instructor` client to make requests.
 
-## Quick Start: Install Instructor for Claude
-
-Get started with Claude and Instructor for structured outputs:
+Let's first install the instructor client with anthropic support
 
 ```
 pip install "instructor[anthropic]"
 ```
 
-Once we've done so, getting started is as simple as using our `from_provider` method to patch the client up.
+Once we've done so, getting started is as simple as using our `from_anthropic` method to patch the client up.
 
 ### Basic Usage
 
@@ -45,14 +43,16 @@ class User(BaseModel):
     age: int = Field(description="The user's age in years")
     properties: List[Properties] = Field(description="List of user properties")
 
-client = instructor.from_provider(
-    "anthropic/claude-3-haiku-20240307",
-    mode=instructor.Mode.ANTHROPIC_TOOLS
+# Initialize the client with explicit mode
+client = instructor.from_anthropic(
+    anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY")),
+    mode=instructor.Mode.ANTHROPIC_TOOLS  # Using Anthropic's tool calling API
 )
 
 try:
     # Extract structured data
     user_response = client.chat.completions.create(
+        model="claude-3-haiku-20240307",  # Use latest stable model
         max_tokens=1024,
         messages=[
             {
@@ -91,228 +91,6 @@ except Exception as e:
     print(f"Unexpected error: {e}")
 ```
 
-### Async Example
-
-```python
-import asyncio
-
-async_client = instructor.from_provider(
-    "anthropic/claude-3-haiku-20240307",
-    async_client=True,
-    mode=instructor.Mode.ANTHROPIC_TOOLS,
-)
-
-async def extract_user():
-    return await async_client.chat.completions.create(
-        messages=[{"role": "user", "content": "Extract: Jason is 25 years old"}],
-        response_model=User,
-    )
-
-user = asyncio.run(extract_user())
-print(user)
-```
-
-### Parallel Tool Calling
-
-```python
-from typing import Iterable, Literal
-from pydantic import BaseModel
-import instructor
-
-
-class Weather(BaseModel):
-    location: str
-    units: Literal["imperial", "metric"]
-
-
-class GoogleSearch(BaseModel):
-    query: str
-
-
-client = instructor.from_provider(
-    "anthropic/claude-3-haiku-20240307",
-    mode=instructor.Mode.ANTHROPIC_PARALLEL_TOOLS,
-)
-
-results = client.chat.completions.create(
-    messages=[
-        {"role": "system", "content": "You must always use tools"},
-        {
-            "role": "user",
-            "content": "What is the weather in toronto and dallas and who won the super bowl?",
-        },
-    ],
-    response_model=Iterable[Weather | GoogleSearch],
-)
-
-for item in results:
-    print(item)
-```
-
-## Multimodal
-
-> We've provided a few different sample files for you to use to test out these new features. All examples below use these files.
->
-> - (Image) : An image of some blueberry plants [image.jpg](https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/image.jpg)
-> - (PDF) : A sample PDF file which contains a fake invoice [invoice.pdf](https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf)
-
-Instructor provides a unified, provider-agnostic interface for working with multimodal inputs like images, PDFs, and audio files. With Instructor's multimodal objects, you can easily load media from URLs, local files, or base64 strings using a consistent API that works across different AI providers (OpenAI, Anthropic, Mistral, etc.).
-
-Instructor handles all the provider-specific formatting requirements behind the scenes, ensuring your code remains clean and future-proof as provider APIs evolve.
-
-Let's see how to use the Image and PDF classes.
-
-### Image
-
-> For a more in-depth walkthrough of the Image component, check out the [docs here](../concepts/multimodal.md)
-
-Instructor makes it easy to analyse and extract semantic information from images using Anthropic's claude models. [Click here](https://docs.anthropic.com/en/docs/about-claude/models/all-models) to check if the model you'd like to use has vison capabilities.
-
-Let's see an example below with the sample image above where we'll load it in using our `from_url` method.
-
-Note that we support local files and base64 strings too with the `from_path` and the `from_base64` class methods.
-
-```python
-from instructor.processing.multimodal import Image
-from pydantic import BaseModel, Field
-import instructor
-from anthropic import Anthropic
-
-
-class ImageDescription(BaseModel):
-    objects: list[str] = Field(..., description="The objects in the image")
-    scene: str = Field(..., description="The scene of the image")
-    colors: list[str] = Field(..., description="The colors in the image")
-
-
-client = instructor.from_provider("anthropic/claude-3-haiku-20240307")
-url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/image.jpg"
-# Multiple ways to load an image:
-response = client.chat.completions.create(
-    response_model=ImageDescription,
-    max_tokens=1000,
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                "What is in this image?",
-                # Option 1: Direct URL with autodetection
-                Image.from_url(url),
-                # Option 2: Local file
-                # Image.from_path("path/to/local/image.jpg")
-                # Option 3: Base64 string
-                # Image.from_base64("base64_encoded_string_here")
-                # Option 4: Autodetect
-                # Image.autodetect(<url|path|base64>)
-            ],
-        },
-    ],
-)
-
-print(response)
-# Example output:
-# ImageDescription(
-#     objects=['blueberries', 'leaves'],
-#     scene='A blueberry bush with clusters of ripe blueberries and some unripe ones against a cloudy sky',
-#     colors=['green', 'blue', 'purple', 'white']
-# )
-
-```
-
-### PDF
-
-Instructor makes it easy to analyse and extract semantic information from PDFs using Anthropic's Claude line of models.
-
-Let's see an example below with the sample PDF above where we'll load it in using our `from_url` method.
-
-Note that we support local files and base64 strings too with the `from_path` and the `from_base64` class methods.
-
-```python
-from instructor.processing.multimodal import PDF
-from pydantic import BaseModel, Field
-import instructor
-from anthropic import Anthropic
-
-
-class Receipt(BaseModel):
-    total: int
-    items: list[str]
-
-
-client = instructor.from_provider("anthropic/claude-3-haiku-20240307")
-url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
-# Multiple ways to load an PDF:
-response = client.chat.completions.create(
-    response_model=Receipt,
-    max_tokens=1000,
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                "Extract out the total and line items from the invoice",
-                # Option 1: Direct URL
-                PDF.from_url(url),
-                # Option 2: Local file
-                # PDF.from_path("path/to/local/invoice.pdf"),
-                # Option 3: Base64 string
-                # PDF.from_base64("base64_encoded_string_here")
-                # Option 4: Autodetect
-                # PDF.autodetect(<url|path|base64>)
-            ],
-        },
-    ],
-)
-
-print(response)
-# > Receipt(total=220, items=['English Tea', 'Tofu'])
-```
-
-If you'd like to cache the PDF and use it across multiple different requests, we support that with the `PdfWithCacheControl` class which we can see below.
-
-```python
-from instructor.processing.multimodal import PdfWithCacheControl
-from pydantic import BaseModel
-import instructor
-from anthropic import Anthropic
-
-
-class Receipt(BaseModel):
-    total: int
-    items: list[str]
-
-
-client = instructor.from_provider("anthropic/claude-3-haiku-20240307")
-url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
-# Multiple ways to load an PDF:
-response, completion = client.chat.completions.create_with_completion(
-    response_model=Receipt,
-    max_tokens=1000,
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                "Extract out the total and line items from the invoice",
-                # Option 1: Direct URL
-                PdfWithCacheControl.from_url(url),
-                # Option 2: Local file
-                # PDF.from_path("path/to/local/invoice.pdf"),
-                # Option 3: Base64 string
-                # PDF.from_base64("base64_encoded_string_here")
-                # Option 4: Autodetect
-                # PDF.autodetect(<url|path|base64>)
-            ],
-        },
-    ],
-)
-
-assert (
-    completion.usage.cache_creation_input_tokens > 0
-    or completion.usage.cache_read_input_tokens > 0
-)
-print(response)
-# > Receipt(total=220, items=['English Tea', 'Tofu'])
-```
-
 ## Streaming Support
 
 Instructor has two main ways that you can use to stream responses out
@@ -330,16 +108,16 @@ import os
 
 # Third-party imports
 import anthropic
-import instructor
+from instructor import from_anthropic
 from pydantic import BaseModel, Field
 
 # Set up environment (typically handled before script execution)
 # os.environ["ANTHROPIC_API_KEY"] = "your-api-key"  # Uncomment and replace with your API key if not set
 
 # Initialize client with explicit mode
-client = instructor.from_provider(
-    "anthropic/claude-3-haiku-20240307",
-    mode=instructor.Mode.ANTHROPIC_TOOLS,
+client = from_anthropic(
+    anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY")),
+    mode=instructor.Mode.ANTHROPIC_TOOLS
 )
 
 # Define your model with proper annotations
@@ -352,6 +130,7 @@ class User(BaseModel):
 try:
     # Stream partial objects as they're generated
     for partial_user in client.chat.completions.create_partial(
+        model="claude-3-haiku-20240307",  # Use latest stable model
         messages=[
             {"role": "system", "content": "Create a detailed user profile based on the information provided."},
             {"role": "user", "content": "Create a user profile for Jason, age 25"},
@@ -379,14 +158,15 @@ import os
 
 # Third-party imports
 import anthropic
-from instructor import from_provider
+from instructor import from_anthropic
 from pydantic import BaseModel, Field
 
 # Set up environment (typically handled before script execution)
 # os.environ["ANTHROPIC_API_KEY"] = "your-api-key"  # Uncomment and replace with your API key if not set
 
 # Initialize client with explicit mode
-client = from_provider(
+client = from_anthropic(
+    anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY")),
     mode=instructor.Mode.ANTHROPIC_TOOLS
 )
 
@@ -399,6 +179,7 @@ class User(BaseModel):
 try:
     # Create an iterable of user objects
     users = client.chat.completions.create_iterable(
+        model="claude-3-haiku-20240307",  # Use latest stable model
         messages=[
             {
                 "role": "system",
@@ -436,7 +217,6 @@ We provide several modes to make it easy to work with the different response mod
 
 1. `instructor.Mode.ANTHROPIC_JSON` : This uses the text completion API from the Anthropic API and then extracts out the desired response model from the text completion model
 2. `instructor.Mode.ANTHROPIC_TOOLS` : This uses Anthropic's [tools calling API](https://docs.anthropic.com/en/docs/build-with-claude/tool-use) to return structured outputs to the client
-3. `instructor.Mode.ANTHROPIC_PARALLEL_TOOLS` : Runs multiple tools in parallel and returns a list of tool calls
 
 In general, we recommend using `Mode.ANTHROPIC_TOOLS` because it's the best way to ensure you have the desired response schema that you want.
 
@@ -469,8 +249,10 @@ class Character(BaseModel):
     description: str = Field(description="A description of the character")
 
 # Initialize client with explicit mode and prompt caching
-client = instructor.from_provider("anthropic/claude-3-haiku-20240307")
+client = instructor.from_anthropic(
+    Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY")),
     mode=instructor.Mode.ANTHROPIC_TOOLS,
+    enable_prompt_caching=True  # Enable prompt caching
 )
 
 try:
@@ -482,6 +264,7 @@ try:
     for _ in range(2):
         # The first time processes the large text, subsequent calls use the cache
         resp, completion = client.chat.completions.create_with_completion(
+            model="claude-3-haiku-20240307",  # Use latest stable model
             messages=[
                 {
                     "role": "system",
@@ -543,8 +326,10 @@ class ImageAnalyzer(BaseModel):
     scene_type: str = Field(description="Type of scene shown in the images (indoor, outdoor, etc.)")
 
 # Initialize client with explicit mode and image caching enabled
-client = instructor.from_provider("anthropic/claude-3-haiku-20240307")
+client = instructor.from_anthropic(
+    Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY")),
     mode=instructor.Mode.ANTHROPIC_TOOLS,
+    enable_prompt_caching=True  # Enable prompt caching
 )
 
 try:
@@ -553,6 +338,7 @@ try:
 
     # Make a request with cached images
     response = client.chat.completions.create(
+        model="claude-3-haiku-20240307",  # Use latest stable model
         response_model=ImageAnalyzer,
         messages=[
             {
@@ -607,8 +393,9 @@ class Answer(BaseModel):
 
 
 client = Anthropic()
-client = instructor.from_provider("anthropic/claude-3-haiku-20240307")
+client = instructor.from_anthropic(client, mode=instructor.Mode.ANTHROPIC_REASONING_TOOLS)
 response = client.chat.completions.create(
+    model="claude-3-7-sonnet-latest",
     response_model=Answer,
     messages=[
         {

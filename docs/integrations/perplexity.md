@@ -23,14 +23,19 @@ Perplexity AI provides access to powerful language models through their API. Ins
 ### Sync Example
 
 ```python
+import os
+from openai import OpenAI
 import instructor
 from pydantic import BaseModel
 
-client = instructor.from_provider(
-    "perplexity/sonar-small-online",
+# Initialize with API key
+client = OpenAI(
     api_key=os.getenv("PERPLEXITY_API_KEY"),
-    base_url="https://api.perplexity.ai",
+    base_url="https://api.perplexity.ai"
 )
+
+# Enable instructor patches for Perplexity client
+client = instructor.from_perplexity(client)
 
 
 class User(BaseModel):
@@ -40,6 +45,7 @@ class User(BaseModel):
 
 # Create structured output
 user = client.chat.completions.create(
+    model="sonar-medium-online",
     messages=[
         {"role": "user", "content": "Extract: Jason is 25 years old"},
     ],
@@ -53,14 +59,20 @@ print(user)
 ### Async Example
 
 ```python
+import os
+from openai import AsyncOpenAI
 import instructor
 from pydantic import BaseModel
 import asyncio
 
-async_client = instructor.from_provider(
-    "perplexity/sonar-small-online",
-    async_client=True,
+# Initialize with API key
+client = AsyncOpenAI(
+    api_key=os.getenv("PERPLEXITY_API_KEY"),
+    base_url="https://api.perplexity.ai"
 )
+
+# Enable instructor patches for Perplexity client
+client = instructor.from_perplexity(client)
 
 
 class User(BaseModel):
@@ -70,6 +82,7 @@ class User(BaseModel):
 
 async def extract_user():
     user = await client.chat.completions.create(
+        model="sonar-medium-online",
         messages=[
             {"role": "user", "content": "Extract: Jason is 25 years old"},
         ],
@@ -93,11 +106,13 @@ import instructor
 from pydantic import BaseModel
 
 # Initialize with API key
-client = instructor.from_provider(
-    "perplexity/sonar-small-online",
+client = OpenAI(
     api_key=os.getenv("PERPLEXITY_API_KEY"),
-    base_url="https://api.perplexity.ai",
+    base_url="https://api.perplexity.ai"
 )
+
+# Enable instructor patches for Perplexity client
+client = instructor.from_perplexity(client)
 
 
 class Address(BaseModel):
@@ -114,6 +129,7 @@ class User(BaseModel):
 
 # Create structured output with nested objects
 user = client.chat.completions.create(
+    model="sonar-medium-online",
     messages=[
         {
             "role": "user",
@@ -151,11 +167,16 @@ import instructor
 from instructor import Mode
 from pydantic import BaseModel
 
-# Initialize client with base URL
-client = instructor.from_provider(
-    "perplexity/sonar-small-online",
+# Initialize with API key
+client = OpenAI(
     api_key=os.getenv("PERPLEXITY_API_KEY"),
-    base_url="https://api.perplexity.ai",
+    base_url="https://api.perplexity.ai"
+)
+
+# Enable instructor patches for Perplexity client with explicit mode
+client = instructor.from_perplexity(
+    client, 
+    mode=Mode.PERPLEXITY_JSON
 )
 
 
@@ -166,6 +187,7 @@ class User(BaseModel):
 
 # Create structured output
 user = client.chat.completions.create(
+    model="sonar-medium-online",
     messages=[
         {"role": "user", "content": "Extract: Jason is 25 years old"},
     ],
@@ -179,4 +201,4 @@ print(user)
 ## Additional Resources
 
 - [Perplexity API Documentation](https://docs.perplexity.ai/)
-- [Perplexity API Reference](https://docs.perplexity.ai/reference/post_chat_completions)
+- [Perplexity API Reference](https://docs.perplexity.ai/reference/post_chat_completions) 

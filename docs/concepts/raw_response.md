@@ -11,9 +11,10 @@ In instructor>1.0.0 we have a custom client, if you wish to use the raw response
 ```python
 import instructor
 
+from openai import OpenAI
 from pydantic import BaseModel
 
-client = instructor.from_provider("openai/gpt-4.1-mini")
+client = instructor.from_openai(OpenAI())
 
 
 class UserExtract(BaseModel):
@@ -22,6 +23,7 @@ class UserExtract(BaseModel):
 
 
 user, completion = client.chat.completions.create_with_completion(
+    model="gpt-3.5-turbo",
     response_model=UserExtract,
     messages=[
         {"role": "user", "content": "Extract jason is 25 years old"},
@@ -59,7 +61,7 @@ ChatCompletion(
         )
     ],
     created=1741141333,
-    model='gpt-4.1-mini-0125',
+    model='gpt-3.5-turbo-0125',
     object='chat.completion',
     service_tier='default',
     system_fingerprint=None,
@@ -83,10 +85,13 @@ You can also access the raw response from Anthropic models. This is useful for d
 ```python
 import instructor
 
-client = instructor.from_provider("anthropic/claude-3-5-sonnet-latest")
+from anthropic import Anthropic
+
+client = instructor.from_anthropic(Anthropic())
 
 
 user, completion = client.chat.completions.create_with_completion(
+    model="claude-3-5-sonnet-latest",
     response_model=UserExtract,
     messages=[
         {"role": "user", "content": "Extract jason is 25 years old"},

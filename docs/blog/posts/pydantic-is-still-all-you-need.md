@@ -123,12 +123,3 @@ Pydantic is still all you need for effective structured outputs with LLMs. It's 
 As we continue to refine AI language models, keeping these principles in mind will lead to more robust, maintainable, and powerful applications. The future of AI isn't just about what the models can do, but how seamlessly we can integrate them into our existing software ecosystems.
 
 For more advanced use cases and integrations, check out our [examples](../../examples/index.md) section, which covers various LLM providers and specialized implementations.
-
-## Related Documentation
-- [Instructor Philosophy](/concepts/philosophy) - Why we chose Pydantic
-- [Validation Guide](/concepts/validation) - Practical validation techniques
-
-## See Also
-- [Validation Deep Dive](validation-part1) - Advanced validation patterns
-- [Best Framework Comparison](best_framework) - Why Instructor stands out
-- [Introduction to Instructor](introduction) - Getting started guide

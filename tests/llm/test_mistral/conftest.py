@@ -1,17 +1,7 @@
 # conftest.py
-import os
 import pytest
-
-if not os.getenv("MISTRAL_API_KEY"):
-    pytest.skip(
-        "MISTRAL_API_KEY environment variable not set",
-        allow_module_level=True,
-    )
-
-try:
-    from mistralai import Mistral
-except ImportError:  # pragma: no cover - optional dependency
-    pytest.skip("mistralai package is not installed", allow_module_level=True)
+import os
+from mistralai import Mistral
 
 
 @pytest.fixture(scope="function")

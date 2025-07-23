@@ -14,7 +14,7 @@ This example demonstrates how to use Instructor with OpenAI's audio capabilities
 from openai import OpenAI
 from pydantic import BaseModel
 import instructor
-from instructor.processing.multimodal import Audio
+from instructor.multimodal import Audio
 import base64
 
 # Initialize the OpenAI client with Instructor
@@ -88,4 +88,4 @@ This pattern is particularly useful for:
 ## Related Examples
 
 - [Multi-Modal Data with Gemini](multi_modal_gemini.md)
-- [Structured Outputs with OpenAI](../integrations/openai.md)
+- [Structured Outputs with OpenAI](../integrations/openai.md) 

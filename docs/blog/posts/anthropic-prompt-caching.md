@@ -20,7 +20,7 @@ tags:
 
 Developers often face two key challenges when working with large context - Slow response times and high costs. This is especially true when we're making multiple of these calls over time, severely impacting the cost and latency of our applications. With Anthropic's new prompt caching feature, we can easily solve both of these issues.
 
-Since the new feature is still in beta, we're going to wait for it to be generally available before we integrate it into instructor. In the meantime, we've put together a quickstart guide on how to use the feature in your own applications.
+Since the new feature is still in beta, we're going to wait for it to be generally avaliable before we integrate it into instructor. In the meantime, we've put together a quickstart guide on how to use the feature in your own applications.
 
 <!-- more -->
 
@@ -336,12 +336,3 @@ for _ in range(2):
     print(completion.usage)
     print(resp)
 ```
-
-## Related Documentation
-- [Caching Strategies](/concepts/caching) - General caching concepts
-- [Anthropic Integration](/integrations/anthropic) - Full Anthropic guide
-
-## See Also
-- [Anthropic Structured Outputs](structured-output-anthropic) - Use with caching
-- [Response Caching](caching) - General caching strategies
-- [Performance Monitoring](logfire) - Track cache performance

@@ -24,19 +24,10 @@ class Mode(enum.Enum):
     MD_JSON = "markdown_json_mode"
     JSON_SCHEMA = "json_schema_mode"
 
-    # Add new modes to support responses api
-    RESPONSES_TOOLS = "responses_tools"
-    RESPONSES_TOOLS_WITH_INBUILT_TOOLS = "responses_tools_with_inbuilt_tools"
-
-    # XAI modes
-    XAI_JSON = "xai_json"
-    XAI_TOOLS = "xai_tools"
-
     # Anthropic modes
     ANTHROPIC_TOOLS = "anthropic_tools"
     ANTHROPIC_REASONING_TOOLS = "anthropic_reasoning_tools"
     ANTHROPIC_JSON = "anthropic_json"
-    ANTHROPIC_PARALLEL_TOOLS = "anthropic_parallel_tools"
 
     # Mistral modes
     MISTRAL_TOOLS = "mistral_tools"
@@ -65,7 +56,6 @@ class Mode(enum.Enum):
 
     # Other providers
     WRITER_TOOLS = "writer_tools"
-    WRITER_JSON = "writer_json"
     BEDROCK_TOOLS = "bedrock_tools"
     BEDROCK_JSON = "bedrock_json"
     PERPLEXITY_JSON = "perplexity_json"
@@ -82,7 +72,6 @@ class Mode(enum.Enum):
             cls.TOOLS_STRICT,
             cls.ANTHROPIC_TOOLS,
             cls.ANTHROPIC_REASONING_TOOLS,
-            cls.ANTHROPIC_PARALLEL_TOOLS,
             cls.MISTRAL_TOOLS,
             cls.VERTEXAI_TOOLS,
             cls.VERTEXAI_PARALLEL_TOOLS,
@@ -94,7 +83,6 @@ class Mode(enum.Enum):
             cls.BEDROCK_TOOLS,
             cls.OPENROUTER_STRUCTURED_OUTPUTS,
             cls.MISTRAL_STRUCTURED_OUTPUTS,
-            cls.XAI_TOOLS,
         }
 
     @classmethod
@@ -111,12 +99,10 @@ class Mode(enum.Enum):
             cls.COHERE_JSON_SCHEMA,
             cls.CEREBRAS_JSON,
             cls.FIREWORKS_JSON,
-            cls.WRITER_JSON,
             cls.BEDROCK_JSON,
             cls.PERPLEXITY_JSON,
             cls.OPENROUTER_STRUCTURED_OUTPUTS,
             cls.MISTRAL_STRUCTURED_OUTPUTS,
-            cls.XAI_JSON,
         }
 
     @classmethod

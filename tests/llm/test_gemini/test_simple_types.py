@@ -1,14 +1,16 @@
 import instructor
-import pytest
+import enum
 
+import google.generativeai as genai
 from typing import Literal
 
 
-@pytest.mark.asyncio
-async def test_literal():
-    client = instructor.from_provider("google/gemini-2.5-flash", async_client=True)
+def test_literal():
+    client = instructor.from_gemini(
+        genai.GenerativeModel("models/gemini-1.5-flash-latest")
+    )
 
-    response = await client.chat.completions.create(
+    response = client.chat.completions.create(
         response_model=Literal["1231", "212", "331"],
         messages=[
             {
@@ -20,11 +22,34 @@ async def test_literal():
     assert response in ["1231", "212", "331"]
 
 
-@pytest.mark.asyncio
-async def test_bool():
-    client = instructor.from_provider("google/gemini-2.5-flash", async_client=True)
+def test_enum():
+    class Options(enum.Enum):
+        A = "A"
+        B = "B"
+        C = "C"
 
-    response = await client.chat.completions.create(
+    client = instructor.from_gemini(
+        genai.GenerativeModel("models/gemini-1.5-flash-latest")
+    )
+
+    response = client.chat.completions.create(
+        response_model=Options,
+        messages=[
+            {
+                "role": "user",
+                "content": "Produce a Random but correct response given the desired output",
+            },
+        ],
+    )
+    assert response in [Options.A, Options.B, Options.C]
+
+
+def test_bool():
+    client = instructor.from_gemini(
+        genai.GenerativeModel("models/gemini-1.5-flash-latest")
+    )
+
+    response = client.chat.completions.create(
         response_model=bool,
         messages=[
             {

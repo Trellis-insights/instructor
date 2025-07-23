@@ -48,39 +48,7 @@ client = AzureOpenAI(
 )
 
 # Patch the client with instructor
-client = instructor.from_provider("azure_openai/gpt-4o-mini")
-```
-
-## Using Auto Client (Recommended)
-
-The easiest way to get started with Azure OpenAI is using the `from_provider` method:
-
-```python
-import instructor
-import os
-
-# Set your Azure OpenAI credentials
-os.environ["AZURE_OPENAI_API_KEY"] = "your-api-key"
-os.environ["AZURE_OPENAI_ENDPOINT"] = "https://your-resource.openai.azure.com/"
-
-# Create client using the provider string
-client = instructor.from_provider("azure_openai/gpt-4o-mini")
-
-# Or async client
-async_client = instructor.from_provider("azure_openai/gpt-4o-mini", async_client=True)
-```
-
-You can also pass credentials as parameters:
-
-```python
-import instructor
-
-client = instructor.from_provider(
-    "azure_openai/gpt-4o-mini",
-    api_key="your-api-key",
-    azure_endpoint="https://your-resource.openai.azure.com/",
-    api_version="2024-02-01"  # Optional, defaults to 2024-02-01
-)
+client = instructor.from_openai(client)
 ```
 
 ## Basic Usage
@@ -98,7 +66,7 @@ client = AzureOpenAI(
     api_version="2024-02-01",
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
 )
-client = instructor.from_provider("azure_openai/gpt-4o-mini")
+client = instructor.from_openai(client)
 
 
 class User(BaseModel):
@@ -108,6 +76,7 @@ class User(BaseModel):
 
 # Synchronous usage
 user = client.chat.completions.create(
+    model="gpt-4o-mini",  # Your deployment name
     messages=[{"role": "user", "content": "John is 30 years old"}],
     response_model=User,
 )
@@ -132,7 +101,7 @@ client = AsyncAzureOpenAI(
     api_version="2024-02-15-preview",
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
 )
-client = instructor.from_provider("azure_openai/gpt-4o-mini")
+client = instructor.from_openai(client)
 
 
 class User(BaseModel):
@@ -142,6 +111,7 @@ class User(BaseModel):
 
 async def get_user_async():
     return await client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": "John is 30 years old"}],
         response_model=User,
     )
@@ -168,7 +138,7 @@ client = AzureOpenAI(
     api_version="2024-02-01",
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
 )
-client = instructor.from_provider("azure_openai/gpt-4o-mini")
+client = instructor.from_openai(client)
 
 
 class Address(BaseModel):
@@ -184,6 +154,7 @@ class UserWithAddress(BaseModel):
 
 
 resp = client.chat.completions.create(
+    model="gpt-4o-mini",  # Your deployment name
     messages=[
         {
             "role": "user",
@@ -228,10 +199,18 @@ Instructor has two main ways that you can use to stream responses out
 You can use our `create_partial` method to stream a single object. Note that validators should not be declared in the response model when streaming objects because it will break the streaming process.
 
 ```python
-import instructor
+from instructor import from_openai
+from openai import AzureOpenAI
 from pydantic import BaseModel
+import os
 
-client = instructor.from_provider("azure_openai/gpt-4o-mini")
+client = from_openai(
+    AzureOpenAI(
+        api_key=os.environ["AZURE_OPENAI_API_KEY"],
+        api_version="2024-02-01",
+        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+    )
+)
 
 
 class User(BaseModel):
@@ -242,6 +221,7 @@ class User(BaseModel):
 
 # Stream partial objects as they're generated
 user = client.chat.completions.create_partial(
+    model="gpt-4o-mini",
     messages=[
         {"role": "user", "content": "Create a user profile for Jason, age 25"},
     ],
@@ -262,10 +242,18 @@ for user_partial in user:
 ## Iterable Responses
 
 ```python
-import instructor
+from instructor import from_openai
+from openai import AzureOpenAI
 from pydantic import BaseModel
+import os
 
-client = instructor.from_provider("azure_openai/gpt-4o-mini")
+client = from_openai(
+    AzureOpenAI(
+        api_key=os.environ["AZURE_OPENAI_API_KEY"],
+        api_version="2024-02-01",
+        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+    )
+)
 
 
 class User(BaseModel):
@@ -275,6 +263,7 @@ class User(BaseModel):
 
 # Extract multiple users from text
 users = client.chat.completions.create_iterable(
+    model="gpt-4o-mini",
     messages=[
         {
             "role": "user",

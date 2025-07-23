@@ -41,11 +41,12 @@ Once we have the model defined, we can create a function that uses the `Maybe` p
 
 ```python
 import instructor
+import openai
 from pydantic import BaseModel, Field
 from typing import Optional
 
 # This enables the `response_model` keyword
-client = instructor.from_provider("openai/gpt-4.1-mini")
+client = instructor.from_openai(openai.OpenAI())
 
 
 class UserDetail(BaseModel):
@@ -65,6 +66,7 @@ class MaybeUser(BaseModel):
 
 def extract(content: str) -> MaybeUser:
     return client.chat.completions.create(
+        model="gpt-3.5-turbo",
         response_model=MaybeUser,
         messages=[
             {"role": "user", "content": f"Extract `{content}`"},

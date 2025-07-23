@@ -12,7 +12,12 @@ env:
 
 jobs:
   Pyright:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.9", "3.10", "3.11"]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -21,7 +26,7 @@ jobs:
         with:
           enable-cache: true
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install ${{ matrix.python-version }}
       - name: Install the project
         run: uv sync --all-extras
       - name: Run pyright

@@ -1,37 +1,15 @@
 import pytest
-from instructor.processing.multimodal import Image, Audio
+from instructor.multimodal import Image, Audio
 import instructor
 from pydantic import Field, BaseModel
 from itertools import product
+from .util import models, modes
 import requests
 from pathlib import Path
-import base64
-import os
+
 
 audio_url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/gettysburg.wav"
 image_url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/image.jpg"
-
-pdf_url = "https://raw.githubusercontent.com/instructor-ai/instructor/main/tests/assets/invoice.pdf"
-curr_file = os.path.dirname(__file__)
-pdf_path = os.path.join(curr_file, "../../assets/invoice.pdf")
-pdf_base64 = base64.b64encode(open(pdf_path, "rb").read()).decode("utf-8")
-pdf_base64_string = f"data:application/pdf;base64,{pdf_base64}"
-
-models = ["gpt-4.1-nano"]
-modes = [
-    instructor.Mode.TOOLS,
-]
-
-
-class LineItem(BaseModel):
-    name: str
-    price: int
-    quantity: int
-
-
-class Receipt(BaseModel):
-    total: int
-    items: list[str]
 
 
 def gettysburg_audio():
@@ -45,17 +23,11 @@ def gettysburg_audio():
 
 
 @pytest.mark.parametrize(
-    "audio_file, mode",
-    [(Audio.from_url(audio_url), mode) for mode in modes],
+    "audio_file",
+    [Audio.from_url(audio_url), Audio.from_path(gettysburg_audio())],
 )
-def test_multimodal_audio_description(audio_file, mode, client):
-    client = instructor.from_openai(client, mode=mode)
-
-    if client.mode in {
-        instructor.Mode.RESPONSES_TOOLS,
-        instructor.Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
-    }:
-        pytest.skip("Audio isn't supported in responses for now")
+def test_multimodal_audio_description(audio_file, client):
+    client = instructor.from_openai(client)
 
     class AudioDescription(BaseModel):
         source: str
@@ -166,48 +138,4 @@ def test_multimodal_image_description_autodetect_no_response_model(model, mode, 
         autodetect_images=True,
     )
 
-    if mode not in {
-        instructor.Mode.RESPONSES_TOOLS,
-        instructor.Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
-    }:
-        assert response.choices[0].message.content.startswith("This is an image")
-    else:
-        assert response.output[0].content[0].text
-
-
-@pytest.mark.parametrize("pdf_source", [pdf_path, pdf_url, pdf_base64_string])
-@pytest.mark.parametrize("model, mode", product(models, modes))
-def test_multimodal_pdf_file(model, mode, client, pdf_source):
-    client = instructor.from_openai(client, mode=mode)
-
-    # Retry logic for flaky LLM responses
-    max_retries = 3
-    for attempt in range(max_retries):
-        response = client.chat.completions.create(
-            model=model,  # Ensure this is a vision-capable model
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Extract the total and items from the invoice. Be precise and only extract the final total amount and list of item names. The total should be exactly 220.",
-                },
-                {
-                    "role": "user",
-                    "content": instructor.processing.multimodal.PDF.autodetect(
-                        pdf_source
-                    ),
-                },
-            ],
-            autodetect_images=False,
-            response_model=Receipt,
-            temperature=0,  # Keep for consistent responses
-        )
-
-        if response.total == 220 and len(response.items) == 2:
-            break
-        elif attempt == max_retries - 1:
-            pytest.fail(
-                f"After {max_retries} attempts, got total={response.total}, items={response.items}, expected total=220, items=2"
-            )
-
-    assert response.total == 220
-    assert len(response.items) == 2
+    assert response.choices[0].message.content.startswith("This is an image")

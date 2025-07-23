@@ -1,17 +1,5 @@
-import os
-import pytest
 import instructor
-
-if not os.getenv("OPENAI_API_KEY"):
-    pytest.skip(
-        "OPENAI_API_KEY environment variable not set",
-        allow_module_level=True,
-    )
-
-try:
-    from litellm import acompletion, completion
-except ImportError:  # pragma: no cover - optional dependency
-    pytest.skip("litellm package is not installed", allow_module_level=True)
+from litellm import acompletion, completion
 
 
 def test_litellm_create():

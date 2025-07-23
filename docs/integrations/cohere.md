@@ -34,9 +34,10 @@ import instructor
 
 
 # Patching the Cohere client with the instructor for enhanced capabilities
-client = instructor.from_provider(
-    "cohere/command-r-plus",
+client = instructor.from_cohere(
+    cohere.Client(),
     max_tokens=1000,
+    model="command-r-plus",
 )
 
 
@@ -86,16 +87,4 @@ print(group.model_dump_json(indent=2))
   ]
 }
 """
-```
-
-### Async Example
-
-```python
-import instructor
-
-async_client = instructor.from_provider(
-    "cohere/command-r-plus",
-    async_client=True,
-    max_tokens=1000,
-)
 ```

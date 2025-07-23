@@ -16,7 +16,6 @@ These are the fundamental concepts you need to understand to use Instructor effe
 - [Types](./types.md) - Working with different data types in your models
 - [Validation](./validation.md) - Validating LLM outputs against your models
 - [Prompting](./prompting.md) - Creating effective prompts for structured output extraction
-- [Multimodal](./multimodal.md) - Working with Audio Files, Images and PDFs
 
 ## Data Handling and Structures
 
@@ -84,14 +83,14 @@ sequenceDiagram
     participant User as Your Code
     participant Instructor
     participant LLM as LLM Provider
-
+    
     User->>Instructor: Define Pydantic model
-    User->>Instructor: Patch LLM client
+    User->>Instructor: Patch LLM client 
     User->>Instructor: Create completion with response_model
-    Instructor->>LLM: Send structured request
+    Instructor->>LLM: Send structured request 
     LLM->>Instructor: Return LLM response
     Instructor->>Instructor: Validate against model
-
+    
     alt Validation Success
         Instructor->>User: Return validated Pydantic object
     else Validation Failure

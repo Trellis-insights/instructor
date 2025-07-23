@@ -1,21 +1,10 @@
+from typing import Any, Optional, cast, ClassVar
 from collections.abc import AsyncGenerator, Generator, Iterable
-from typing import (
-    Any,
-    ClassVar,
-    Optional,
-    cast,
-    get_origin,
-    get_args,
-    Union,
-    TYPE_CHECKING,
-)
-import json
-from pydantic import BaseModel, Field, create_model
-from ..mode import Mode
-from ..utils import extract_json_from_stream, extract_json_from_stream_async
 
-if TYPE_CHECKING:
-    pass
+from pydantic import BaseModel, Field, create_model
+from instructor.function_calls import OpenAISchema
+from instructor.mode import Mode
+from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
 
 
 class IterableBase:
@@ -31,6 +20,8 @@ class IterableBase:
             json_chunks = extract_json_from_stream(json_chunks)
 
         if mode in {Mode.VERTEXAI_TOOLS, Mode.MISTRAL_TOOLS}:
+            import json
+
             response = next(json_chunks)
             if not response:
                 return
@@ -40,7 +31,7 @@ class IterableBase:
                 return
 
             for item in json_response["tasks"]:
-                yield cls.extract_cls_task_type(json.dumps(item), **kwargs)
+                yield cls.task_type.model_validate(item)  # type: ignore
 
         yield from cls.tasks_from_chunks(json_chunks, **kwargs)
 
@@ -60,11 +51,12 @@ class IterableBase:
 
     @classmethod
     async def tasks_from_mistral_chunks(
-        cls, json_chunks: AsyncGenerator[str, None], **kwargs: Any
+        cls, json_chunks: AsyncGenerator[str, None]
     ) -> AsyncGenerator[BaseModel, None]:
         """Process streaming chunks from Mistral and VertexAI.
 
         Handles the specific JSON format used by these providers when streaming."""
+        import json
 
         async for chunk in json_chunks:
             if not chunk:
@@ -74,8 +66,7 @@ class IterableBase:
                 continue
 
             for item in json_response["tasks"]:
-                obj = cls.extract_cls_task_type(json.dumps(item), **kwargs)
-                yield obj
+                yield cls.task_type.model_validate(item)  # type: ignore
 
     @classmethod
     def tasks_from_chunks(
@@ -89,15 +80,13 @@ class IterableBase:
                 if "[" in chunk:
                     started = True
                     potential_object = chunk[chunk.find("[") + 1 :]
+                continue
 
-            while True:
-                task_json, potential_object = cls.get_object(potential_object, 0)
-                if task_json:
-                    assert cls.task_type is not None
-                    obj = cls.extract_cls_task_type(task_json, **kwargs)
-                    yield obj
-                else:
-                    break
+            task_json, potential_object = cls.get_object(potential_object, 0)
+            if task_json:
+                assert cls.task_type is not None
+                obj = cls.task_type.model_validate_json(task_json, **kwargs)
+                yield obj
 
     @classmethod
     async def tasks_from_chunks_async(
@@ -111,36 +100,13 @@ class IterableBase:
                 if "[" in chunk:
                     started = True
                     potential_object = chunk[chunk.find("[") + 1 :]
+                continue
 
-            while True:
-                task_json, potential_object = cls.get_object(potential_object, 0)
-                if task_json:
-                    assert cls.task_type is not None
-                    obj = cls.extract_cls_task_type(task_json, **kwargs)
-                    yield obj
-                else:
-                    break
-
-    @classmethod
-    def extract_cls_task_type(
-        cls,
-        task_json: str,
-        **kwargs: Any,
-    ):
-        assert cls.task_type is not None
-        if get_origin(cls.task_type) is Union:
-            union_members = get_args(cls.task_type)
-            for member in union_members:
-                try:
-                    obj = member.model_validate_json(task_json, **kwargs)
-                    return obj
-                except Exception:
-                    pass
-        else:
-            return cls.task_type.model_validate_json(task_json, **kwargs)
-        raise ValueError(
-            f"Failed to extract task type with {task_json} for {cls.task_type}"
-        )
+            task_json, potential_object = cls.get_object(potential_object, 0)
+            if task_json:
+                assert cls.task_type is not None
+                obj = cls.task_type.model_validate_json(task_json, **kwargs)
+                yield obj
 
     @staticmethod
     def extract_json(
@@ -158,6 +124,8 @@ class IterableBase:
                 if mode == Mode.VERTEXAI_JSON:
                     yield chunk.candidates[0].content.parts[0].text
                 if mode == Mode.VERTEXAI_TOOLS:
+                    import json
+
                     yield json.dumps(
                         chunk.candidates[0].content.parts[0].function_call.args
                     )
@@ -167,31 +135,15 @@ class IterableBase:
                     if not chunk.data.choices[0].delta.tool_calls:
                         continue
                     yield chunk.data.choices[0].delta.tool_calls[0].function.arguments
+                if mode == Mode.GEMINI_TOOLS:
+                    # Gemini seems to return the entire function_call and not a chunk?
+                    import json
 
-                if mode in {Mode.GENAI_TOOLS}:
-                    yield json.dumps(
-                        chunk.candidates[0].content.parts[0].function_call.args
-                    )
-                if mode in {Mode.GENAI_STRUCTURED_OUTPUTS}:
-                    yield chunk.candidates[0].content.parts[0].text
-
-                if mode in {Mode.GEMINI_TOOLS}:
                     resp = chunk.candidates[0].content.parts[0].function_call
                     resp_dict = type(resp).to_dict(resp)  # type:ignore
 
                     if "args" in resp_dict:
                         yield json.dumps(resp_dict["args"])
-
-                if mode in {
-                    Mode.RESPONSES_TOOLS,
-                    Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
-                }:
-                    from openai.types.responses import (
-                        ResponseFunctionCallArgumentsDeltaEvent,
-                    )
-
-                    if isinstance(chunk, ResponseFunctionCallArgumentsDeltaEvent):
-                        yield chunk.delta
                 elif chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         Mode.warn_mode_functions_deprecation()
@@ -204,7 +156,6 @@ class IterableBase:
                         Mode.CEREBRAS_JSON,
                         Mode.FIREWORKS_JSON,
                         Mode.PERPLEXITY_JSON,
-                        Mode.WRITER_JSON,
                     }:
                         if json_chunk := chunk.choices[0].delta.content:
                             yield json_chunk
@@ -238,6 +189,8 @@ class IterableBase:
                 if mode == Mode.VERTEXAI_JSON:
                     yield chunk.candidates[0].content.parts[0].text
                 if mode == Mode.VERTEXAI_TOOLS:
+                    import json
+
                     yield json.dumps(
                         chunk.candidates[0].content.parts[0].function_call.args
                     )
@@ -247,22 +200,6 @@ class IterableBase:
                     if not chunk.data.choices[0].delta.tool_calls:
                         continue
                     yield chunk.data.choices[0].delta.tool_calls[0].function.arguments
-                if mode == Mode.GENAI_STRUCTURED_OUTPUTS:
-                    yield chunk.text
-                if mode in {Mode.GENAI_TOOLS}:
-                    yield json.dumps(
-                        chunk.candidates[0].content.parts[0].function_call.args
-                    )
-                if mode in {
-                    Mode.RESPONSES_TOOLS,
-                    Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
-                }:
-                    from openai.types.responses import (
-                        ResponseFunctionCallArgumentsDeltaEvent,
-                    )
-
-                    if isinstance(chunk, ResponseFunctionCallArgumentsDeltaEvent):
-                        yield chunk.delta
                 elif chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         Mode.warn_mode_functions_deprecation()
@@ -275,7 +212,6 @@ class IterableBase:
                         Mode.CEREBRAS_JSON,
                         Mode.FIREWORKS_JSON,
                         Mode.PERPLEXITY_JSON,
-                        Mode.WRITER_JSON,
                     }:
                         if json_chunk := chunk.choices[0].delta.content:
                             yield json_chunk
@@ -313,9 +249,6 @@ def IterableModel(
     name: Optional[str] = None,
     description: Optional[str] = None,
 ) -> type[BaseModel]:
-    # Import at runtime to avoid circular import
-    from ..processing.function_calls import OpenAISchema
-
     """
     Dynamically create a IterableModel OpenAISchema that can be used to segment multiple
     tasks given a base class. This creates class that can be used to create a toolkit

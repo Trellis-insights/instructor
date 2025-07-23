@@ -83,7 +83,7 @@ except Exception as e:
     """
 ```
 
-We can see that we lose the original completion when validation fails. This leaves developers without the means to implement retry logic so that the LLM can provide a targeted correction and regenerate its response.
+We can see that we lose the original completion when validation fails. This leaves developers without the means to implement retry logic so that the LLM can provide a targetted correction and regenerate its response.
 
 Without robust validation, applications risk producing inconsistent outputs and losing valuable context for error correction. This leads to degraded user experience and missed opportunities for targeted improvements in LLM responses.
 
@@ -117,7 +117,7 @@ with client.beta.chat.completions.stream(
     for event in stream:
         if event.type == "content.delta":
             print(event.snapshot, flush=True, end="\n")
-            #>
+            #> 
             #> {"
             #> {"name
             #> {"name":"
@@ -198,13 +198,16 @@ print(resp)
 #> name='JASON' age=25
 ```
 
-This built-in retry logic allows for targeted correction to the generated response, ensuring that outputs are not only consistent with your schema but also correct for your use-case. This is invaluable in building reliable LLM systems.
+This built-in retry logic allows for targetted correction to the generated response, ensuring that outputs are not only consistent with your schema but also correct for your use-case. This is invaluable in building reliable LLM systems.
 
 ### Real-time Streaming Validation
 
 A common use-case is to define a single schema and extract multiple instances of it. With `instructor`, doing this is relatively straightforward by using [our `create_iterable` method](../../concepts/lists.md).
 
 ```python
+
+```
+
 client = instructor.from_openai(openai.OpenAI(), mode=instructor.Mode.TOOLS_STRICT)
 
 
@@ -303,7 +306,7 @@ This will output the following
 
 With `instructor`, switching between different providers is easy due to our unified API.
 
-For example, the switch from OpenAI to Anthropic requires only three adjustments
+For example, the swtich from OpenAI to Anthropic requires only three adjustments
 
 1. Import the Anthropic client
 2. Use `from_anthropic` instead of `from_openai`

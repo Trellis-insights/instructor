@@ -20,7 +20,7 @@ from openai.types.chat.chat_completion_message_param import ChatCompletionMessag
 from pydantic import BaseModel, validate_call
 
 from openai import OpenAI
-from .processing.function_calls import openai_schema
+from instructor.function_calls import openai_schema
 
 
 P = ParamSpec("P")
@@ -90,9 +90,9 @@ def is_return_type_base_model_or_instance(func: Callable[..., Any]) -> bool:
     :return: True if the return type is a pydantic BaseModel or an instance of it.
     """
     return_type = inspect.signature(func).return_annotation
-    assert return_type != inspect.Signature.empty, (
-        "Must have a return type hint that is a pydantic BaseModel"
-    )
+    assert (
+        return_type != inspect.Signature.empty
+    ), "Must have a return type hint that is a pydantic BaseModel"
     return inspect.isclass(return_type) and issubclass(return_type, BaseModel)
 
 

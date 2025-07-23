@@ -6,10 +6,7 @@ import json
 import pytest
 
 from instructor.utils import extract_json_from_codeblock, extract_json_from_stream
-from instructor.processing.function_calls import (
-    _extract_text_content,
-    _validate_model_from_json,
-)
+from instructor.function_calls import _extract_text_content, _validate_model_from_json
 from pydantic import BaseModel
 
 

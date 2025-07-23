@@ -29,7 +29,7 @@ With the advent of large language models (LLM), retrieval augmented generation (
   <figcaption>Simple RAG that embedded the user query and makes a search.</figcaption>
 </figure>
 
-So let's kick things off by examining what I like to call the 'Dumb' RAG Model-a basic setup that's more common than you'd think.
+So let's kick things off by examining what I like to call the 'Dumb' RAG Model—a basic setup that's more common than you'd think.
 
 <!-- more -->
 
@@ -72,7 +72,7 @@ Instructor uses Pydantic to simplify the interaction between the programmer and 
 
 ## Case Study 1: Metaphor Systems
 
-Take [Metaphor Systems](https://metaphor.systems), which turns natural language queries into their custom search-optimized query. If you take a look web UI you'll notice that they have an auto-prompt option, which uses function calls to further optimize your query using a language model, and turns it into a fully specified metaphor systems query.
+Take [Metaphor Systems](https://metaphor.systems), which turns natural language queries into their custom search-optimized query. If you take a look web UI you'll notice that they have an auto-prompt option, which uses function calls to furthur optimize your query using a language model, and turns it into a fully specified metaphor systems query.
 
 <figure markdown>
 ![Metaphor Systems](img/meta.png)
@@ -235,14 +235,6 @@ This is not about fancy embedding tricks, it's just plain old information retrie
 
 ## What's Next?
 
-Here I want to show that `instructor` isn’t just about data extraction. It’s a powerful framework for building a data model and integrating it with your LLM. Structured output is just the beginning - the untapped goldmine is skilled use of tools and APIs.
-
-## Related Documentation
-- [Validation Concepts](/concepts/validation) - Validate RAG outputs
-
-## See Also
-- [LLM as Reranker](llm-as-reranker) - Improve search relevance
-- [Citation Extraction](citations) - Verify sources
-- [PDF Processing](chat-with-your-pdf-with-gemini) - Document handling
+Here I want to show that `instructor` isn’t just about data extraction. It’s a powerful framework for building a data model and integrating it with your LLM. Structured output is just the beginning — the untapped goldmine is skilled use of tools and APIs.
 
 If you enjoy the content or want to try out `instructor` please check out the [github](https://github.com/jxnl/instructor) and give us a star!

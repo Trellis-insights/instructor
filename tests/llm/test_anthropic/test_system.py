@@ -12,9 +12,10 @@ class User(BaseModel):
 
 
 @pytest.mark.parametrize("model, mode", product(models, modes))
-def test_creation(model, mode):
-    client = instructor.from_provider(model, mode=mode)
+def test_creation(model, mode, client):
+    client = instructor.from_anthropic(client, mode=mode)
     response = client.chat.completions.create(
+        model=model,
         response_model=User,
         messages=[
             {
@@ -39,9 +40,10 @@ def test_creation(model, mode):
 
 
 @pytest.mark.parametrize("model, mode", product(models, modes))
-def test_creation_with_system_cache(model, mode):
-    client = instructor.from_provider(model, mode=mode)
+def test_creation_with_system_cache(model, mode, client):
+    client = instructor.from_anthropic(client, mode=mode)
     response, message = client.chat.completions.create_with_completion(
+        model=model,
         response_model=User,
         messages=[
             {
@@ -80,9 +82,10 @@ def test_creation_with_system_cache(model, mode):
 
 
 @pytest.mark.parametrize("model, mode", product(models, modes))
-def test_creation_with_system_cache_anthropic_style(model, mode):
-    client = instructor.from_provider(model, mode=mode)
+def test_creation_with_system_cache_anthropic_style(model, mode, client):
+    client = instructor.from_anthropic(client, mode=mode)
     response, message = client.chat.completions.create_with_completion(
+        model=model,
         system=[
             {
                 "type": "text",
@@ -118,10 +121,11 @@ def test_creation_with_system_cache_anthropic_style(model, mode):
 
 
 @pytest.mark.parametrize("model, mode", product(models, modes))
-def test_creation_no_response_model(model, mode):
-    client = instructor.from_provider(model, mode=mode)
+def test_creation_no_response_model(model, mode, client):
+    client = instructor.from_anthropic(client, mode=mode)
     response = client.chat.completions.create(
         response_model=None,
+        model=model,
         messages=[
             {
                 "role": "system",

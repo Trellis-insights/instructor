@@ -1,6 +1,6 @@
 from itertools import product
 from collections.abc import Iterable
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import pytest
 import instructor
 from writerai import AsyncWriter, Writer
@@ -10,10 +10,7 @@ from .util import models, modes
 
 
 class UserExtract(BaseModel):
-    first_name: str = Field(
-        ...,
-        description="Exactly first name of person. Don't confuse it with the full name.",
-    )
+    first_name: str
     age: int
 
 
@@ -76,7 +73,7 @@ async def test_writer_iterable_model_async(model: str, mode: instructor.Mode):
     )
 
     models = []
-    async for m in response:
+    for m in response:
         assert isinstance(m, UserExtract)
         models += [m]
 
